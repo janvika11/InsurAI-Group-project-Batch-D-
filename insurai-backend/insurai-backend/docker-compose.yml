@@ -1,0 +1,209 @@
+version: '3.9'
+
+services:
+
+  # ─── Infrastructure ───────────────────────────────────────────────────────
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    ports: ["2181:2181"]
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    depends_on: [zookeeper]
+    ports: ["9092:9092"]
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    depends_on: [kafka]
+    ports: ["8090:8080"]
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+
+  # ─── PostgreSQL (one per Java service) ────────────────────────────────────
+
+  postgres-auth:
+    image: postgres:16-alpine
+    environment: { POSTGRES_DB: authdb, POSTGRES_USER: insurai, POSTGRES_PASSWORD: insurai123 }
+    ports: ["5432:5432"]
+    volumes: ["pg-auth:/var/lib/postgresql/data"]
+
+  postgres-policy:
+    image: postgres:16-alpine
+    environment: { POSTGRES_DB: policydb, POSTGRES_USER: insurai, POSTGRES_PASSWORD: insurai123 }
+    ports: ["5433:5432"]
+    volumes: ["pg-policy:/var/lib/postgresql/data"]
+
+  postgres-workflow:
+    image: postgres:16-alpine
+    environment: { POSTGRES_DB: workflowdb, POSTGRES_USER: insurai, POSTGRES_PASSWORD: insurai123 }
+    ports: ["5434:5432"]
+    volumes: ["pg-workflow:/var/lib/postgresql/data"]
+
+  postgres-rules:
+    image: postgres:16-alpine
+    environment: { POSTGRES_DB: rulesdb, POSTGRES_USER: insurai, POSTGRES_PASSWORD: insurai123 }
+    ports: ["5435:5432"]
+    volumes: ["pg-rules:/var/lib/postgresql/data"]
+
+  postgres-claims:
+    image: postgres:16-alpine
+    environment: { POSTGRES_DB: claimsdb, POSTGRES_USER: insurai, POSTGRES_PASSWORD: insurai123 }
+    ports: ["5436:5432"]
+    volumes: ["pg-claims:/var/lib/postgresql/data"]
+
+  postgres-renewal:
+    image: postgres:16-alpine
+    environment: { POSTGRES_DB: renewaldb, POSTGRES_USER: insurai, POSTGRES_PASSWORD: insurai123 }
+    ports: ["5437:5432"]
+    volumes: ["pg-renewal:/var/lib/postgresql/data"]
+
+  # ─── Java Services ─────────────────────────────────────────────────────────
+
+  api-gateway:
+    build: ./java/api-gateway
+    ports: ["8080:8080"]
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-insurai-secret-key-change-in-prod}
+      AUTH_SERVICE_URL: http://auth-service:8081
+      POLICY_SERVICE_URL: http://policy-service:8082
+      WORKFLOW_SERVICE_URL: http://workflow-service:8083
+      RULES_SERVICE_URL: http://rules-service:8084
+      CLAIMS_SERVICE_URL: http://claims-service:8085
+      RENEWAL_SERVICE_URL: http://renewal-service:8086
+      NOTIFY_SERVICE_URL: http://notify-service:8087
+      AI_RISK_SERVICE_URL: http://ai-risk-service:9001
+      AI_FRAUD_SERVICE_URL: http://ai-fraud-service:9002
+      AI_DOCUMENT_SERVICE_URL: http://ai-document-service:9003
+      AI_ASSISTANT_SERVICE_URL: http://ai-assistant-service:9004
+    depends_on: [auth-service]
+
+  auth-service:
+    build: ./java/auth-service
+    ports: ["8081:8081"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-auth:5432/authdb
+      SPRING_DATASOURCE_USERNAME: insurai
+      SPRING_DATASOURCE_PASSWORD: insurai123
+      JWT_SECRET: ${JWT_SECRET:-insurai-secret-key-change-in-prod}
+      JWT_EXPIRY_MS: 86400000
+      JWT_REFRESH_EXPIRY_MS: 604800000
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on: [postgres-auth, kafka]
+
+  policy-service:
+    build: ./java/policy-service
+    ports: ["8082:8082"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-policy:5432/policydb
+      SPRING_DATASOURCE_USERNAME: insurai
+      SPRING_DATASOURCE_PASSWORD: insurai123
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      RULES_SERVICE_URL: http://rules-service:8084
+    depends_on: [postgres-policy, kafka]
+
+  workflow-service:
+    build: ./java/workflow-service
+    ports: ["8083:8083"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-workflow:5432/workflowdb
+      SPRING_DATASOURCE_USERNAME: insurai
+      SPRING_DATASOURCE_PASSWORD: insurai123
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on: [postgres-workflow, kafka]
+
+  rules-service:
+    build: ./java/rules-service
+    ports: ["8084:8084"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-rules:5432/rulesdb
+      SPRING_DATASOURCE_USERNAME: insurai
+      SPRING_DATASOURCE_PASSWORD: insurai123
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on: [postgres-rules, kafka]
+
+  claims-service:
+    build: ./java/claims-service
+    ports: ["8085:8085"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-claims:5432/claimsdb
+      SPRING_DATASOURCE_USERNAME: insurai
+      SPRING_DATASOURCE_PASSWORD: insurai123
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on: [postgres-claims, kafka]
+
+  renewal-service:
+    build: ./java/renewal-service
+    ports: ["8086:8086"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-renewal:5432/renewaldb
+      SPRING_DATASOURCE_USERNAME: insurai
+      SPRING_DATASOURCE_PASSWORD: insurai123
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on: [postgres-renewal, kafka]
+
+  notify-service:
+    build: ./java/notify-service
+    ports: ["8087:8087"]
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+    depends_on: [kafka]
+
+  # ─── Python AI Services ────────────────────────────────────────────────────
+
+  ai-risk-service:
+    build: ./python/ai-risk-service
+    ports: ["9001:9001"]
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      REDIS_URL: redis://redis:6379
+    depends_on: [kafka, redis]
+
+  ai-fraud-service:
+    build: ./python/ai-fraud-service
+    ports: ["9002:9002"]
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      REDIS_URL: redis://redis:6379
+    depends_on: [kafka, redis]
+
+  ai-document-service:
+    build: ./python/ai-document-service
+    ports: ["9003:9003"]
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on: [kafka]
+
+  ai-assistant-service:
+    build: ./python/ai-assistant-service
+    ports: ["9004:9004"]
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      REDIS_URL: redis://redis:6379
+    depends_on: [kafka, redis]
+
+volumes:
+  pg-auth:
+  pg-policy:
+  pg-workflow:
+  pg-rules:
+  pg-claims:
+  pg-renewal:

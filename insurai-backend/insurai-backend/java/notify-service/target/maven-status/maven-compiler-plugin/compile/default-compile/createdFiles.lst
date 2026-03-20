@@ -1,0 +1,7 @@
+com\insurai\notify\service\EmailService.class
+com\insurai\notify\service\TemplateService.class
+com\insurai\notify\config\KafkaConfig.class
+com\insurai\notify\dto\NotificationEvent.class
+com\insurai\notify\kafka\NotificationEventConsumer.class
+com\insurai\notify\service\NotificationDispatcher.class
+com\insurai\notify\NotifyServiceApplication.class

@@ -1,0 +1,68 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "http://localhost:3000,http://localhost:5173"
+            allowedMethods: "GET,POST,PUT,DELETE,PATCH,OPTIONS"
+            allowedHeaders: "Authorization,Content-Type,X-User-Id"
+            allowCredentials: true
+      routes:
+        - id: auth-service
+          uri: ${AUTH_SERVICE_URL:http://localhost:8081}
+          predicates: [Path=/api/auth/**]
+
+        - id: policy-service
+          uri: ${POLICY_SERVICE_URL:http://localhost:8082}
+          predicates: [Path=/api/policies/**]
+
+        - id: workflow-service
+          uri: ${WORKFLOW_SERVICE_URL:http://localhost:8083}
+          predicates: [Path=/api/workflows/**]
+
+        - id: rules-service
+          uri: ${RULES_SERVICE_URL:http://localhost:8084}
+          predicates: [Path=/api/rules/**]
+
+        - id: claims-service
+          uri: ${CLAIMS_SERVICE_URL:http://localhost:8085}
+          predicates: [Path=/api/claims/**]
+
+        - id: renewal-service
+          uri: ${RENEWAL_SERVICE_URL:http://localhost:8086}
+          predicates: [Path=/api/renewals/**]
+
+        - id: notify-service
+          uri: ${NOTIFY_SERVICE_URL:http://localhost:8087}
+          predicates: [Path=/api/notifications/**]
+
+        - id: ai-document-service
+          uri: ${AI_DOCUMENT_SERVICE_URL:http://localhost:9003}
+          predicates: [Path=/api/ai/documents/**]
+
+        - id: ai-assistant-service
+          uri: ${AI_ASSISTANT_SERVICE_URL:http://localhost:9004}
+          predicates: [Path=/api/ai/assistant/**]
+
+        - id: ai-risk-service
+          uri: ${AI_RISK_SERVICE_URL:http://localhost:9001}
+          predicates: [Path=/api/ai/risk/**]
+
+        - id: ai-fraud-service
+          uri: ${AI_FRAUD_SERVICE_URL:http://localhost:9002}
+          predicates: [Path=/api/ai/fraud/**]
+
+        - id: auth-users
+          uri: ${AUTH_SERVICE_URL:http://localhost:8081}
+          predicates: [Path=/api/users/**]
+
+jwt:
+  secret: ${JWT_SECRET:insurai-secret-key-change-in-prod}

@@ -1,0 +1,25 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: auth-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/authdb}
+    username: ${SPRING_DATASOURCE_USERNAME:insurai}
+    password: ${SPRING_DATASOURCE_PASSWORD:insurai123}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+jwt:
+  secret: ${JWT_SECRET:insurai-secret-key-change-in-prod}
+  expiry-ms: ${JWT_EXPIRY_MS:86400000}
+  refresh-expiry-ms: ${JWT_REFRESH_EXPIRY_MS:604800000}
+
+kafka:
+  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
