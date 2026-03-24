@@ -217,3 +217,4 @@ On receive: update claim.fraudScore, claim.fraudVerdict, change status to FRAUD_
 - If fraudScore ≤ 30 → keep UNDER_REVIEW, eligible for fast-track approval
 - Only CLAIMS_ADJUSTER or ADMIN can approve/reject
 - CUSTOMER can withdraw only SUBMITTED claims
+

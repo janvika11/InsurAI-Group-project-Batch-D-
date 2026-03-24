@@ -42,7 +42,27 @@ def _template_summarize(policy_id: Optional[str] = None) -> str:
 
 
 async def chat(user_id: str, message: str, conversation_id: Optional[str] = None) -> dict:
-    """Chat with template fallback. Uses OpenAI if OPENAI_API_KEY is set and openai package installed."""
+    """Chat with template fallback. Uses Anthropic first, then OpenAI."""
+    if settings.anthropic_api_key:
+        try:
+            from anthropic import AsyncAnthropic
+            client = AsyncAnthropic(api_key=settings.anthropic_api_key)
+            resp = await client.messages.create(
+                model="claude-3-5-sonnet-20241022",
+                max_tokens=500,
+                messages=[{"role": "user", "content": message}],
+            )
+            reply_parts = []
+            for block in getattr(resp, "content", []) or []:
+                txt = getattr(block, "text", None)
+                if txt:
+                    reply_parts.append(txt)
+            reply = "\n".join(reply_parts).strip()
+            if reply:
+                return {"reply": reply, "sources": []}
+        except Exception:
+            pass  # fall through
+
     if settings.openai_api_key:
         try:
             import openai
@@ -65,6 +85,27 @@ async def chat(user_id: str, message: str, conversation_id: Optional[str] = None
 
 async def summarize(policy_id: Optional[str] = None, content: Optional[str] = None) -> dict:
     """Summarize policy with template fallback."""
+    if settings.anthropic_api_key and content:
+        try:
+            from anthropic import AsyncAnthropic
+            client = AsyncAnthropic(api_key=settings.anthropic_api_key)
+            resp = await client.messages.create(
+                model="claude-3-5-sonnet-20241022",
+                max_tokens=700,
+                system="Summarize this insurance policy document briefly.",
+                messages=[{"role": "user", "content": content[:6000]}],
+            )
+            summary_parts = []
+            for block in getattr(resp, "content", []) or []:
+                txt = getattr(block, "text", None)
+                if txt:
+                    summary_parts.append(txt)
+            summary = "\n".join(summary_parts).strip()
+            if summary:
+                return {"summary": summary, "policy_id": policy_id}
+        except Exception:
+            pass
+
     if settings.openai_api_key and content:
         try:
             import openai

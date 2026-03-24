@@ -140,3 +140,4 @@ Allow:
 
 ## Health Check
 GET /actuator/health → 200 OK (used by Docker healthcheck)
+

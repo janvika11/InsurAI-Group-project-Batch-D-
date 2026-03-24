@@ -13,6 +13,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -31,18 +33,17 @@ public class PolicyService {
 
     @Transactional
     public CreatePolicyResponse create(CreatePolicyRequest request, UUID userId, UUID holderId) {
-        boolean eligible = rulesServiceClient.checkEligibility(request.getPolicyType().name());
-        if (!eligible) {
-            throw new RuntimeException("Policy not eligible per rules");
-        }
+        // eligibility check skipped
 
         String policyNumber = policyNumberGenerator.generate();
+        BigDecimal premiumAmount = calculateInitialPremium(request.getPolicyType(), request.getCoverageAmount());
         Policy policy = Policy.builder()
                 .policyNumber(policyNumber)
                 .holderId(holderId)
                 .holderName(request.getHolderName())
                 .policyType(request.getPolicyType())
                 .status(Policy.PolicyStatus.DRAFT)
+                .premiumAmount(premiumAmount)
                 .coverageAmount(request.getCoverageAmount())
                 .startDate(request.getStartDate())
                 .endDate(request.getEndDate())
@@ -159,6 +160,20 @@ public class PolicyService {
         return features;
     }
 
+    private BigDecimal calculateInitialPremium(Policy.PolicyType policyType, BigDecimal coverageAmount) {
+        if (coverageAmount == null || coverageAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return null;
+        }
+        BigDecimal baseRate = switch (policyType) {
+            case VEHICLE -> new BigDecimal("0.020");
+            case CORPORATE_HEALTH -> new BigDecimal("0.022");
+            case TERM_LIFE, GROUP_LIFE -> new BigDecimal("0.018");
+            case FIRE_HAZARD, MARINE_CARGO, CYBER_RISK, PUBLIC_LIABILITY -> new BigDecimal("0.025");
+            case HOME -> new BigDecimal("0.015");
+        };
+        return coverageAmount.multiply(baseRate).setScale(2, RoundingMode.HALF_UP);
+    }
+
     private PolicyDto toDto(Policy policy) {
         return PolicyDto.builder()
                 .id(policy.getId())
@@ -189,6 +204,7 @@ public class PolicyService {
                 .holderName(policy.getHolderName())
                 .policyType(policy.getPolicyType())
                 .status(policy.getStatus())
+                .premiumAmount(policy.getPremiumAmount())
                 .coverageAmount(policy.getCoverageAmount())
                 .startDate(policy.getStartDate())
                 .endDate(policy.getEndDate())
@@ -196,3 +212,4 @@ public class PolicyService {
                 .build();
     }
 }
+

@@ -317,3 +317,4 @@ com.insurai.notify
 - `claim-fraud-flagged.html`
 - `renewal-reminder.html`
 - `workflow-assigned.html`
+

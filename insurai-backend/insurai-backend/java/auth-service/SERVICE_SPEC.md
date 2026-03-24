@@ -200,3 +200,4 @@ Publish to `audit-events` topic on login/logout/register:
   "ipAddress": "..."
 }
 ```
+

@@ -17,6 +17,7 @@ public class PolicySummaryDto {
     private String holderName;
     private Policy.PolicyType policyType;
     private Policy.PolicyStatus status;
+    private BigDecimal premiumAmount;
     private BigDecimal coverageAmount;
     private LocalDate startDate;
     private LocalDate endDate;

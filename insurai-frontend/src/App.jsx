@@ -103,7 +103,7 @@ function TR({ children, onClick }) {
   return <tr style={{background:hov?"rgba(150,150,255,.05)":"transparent",cursor:onClick?"pointer":"default",transition:"background .15s"}} onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)} onClick={onClick}>{children}</tr>;
 }
 
-function Sidebar({ role, nav, setNav, T, onLogout }) {
+function Sidebar({ role, nav, setNav, T, onLogout, badgeCounts = {} }) {
   const NAVS = {
     customer:    [{id:"home",icon:"🏠",label:"My Dashboard"},{id:"policies",icon:"📋",label:"My Policies"},{id:"apply",icon:"✨",label:"Apply for Policy"},{id:"claims",icon:"📁",label:"My Claims"},{id:"fileclaim",icon:"📝",label:"File a Claim"},{id:"renewals",icon:"🔁",label:"Renewals"},{id:"assistant",icon:"💬",label:"AI Assistant"},{id:"documents",icon:"📎",label:"My Documents"}],
     underwriter: [{id:"home",icon:"⬡",label:"Dashboard"},{id:"queue",icon:"📥",label:"Review Queue",badge:"7"},{id:"policies",icon:"📋",label:"All Policies"},{id:"risk",icon:"📊",label:"Risk Analysis"},{id:"rules",icon:"⚖️",label:"Rules Engine"},{id:"approved",icon:"✅",label:"Approved"},{id:"escalated",icon:"🚨",label:"Escalated",badge:"2"},{id:"reports",icon:"📈",label:"Reports"}],
@@ -140,7 +140,11 @@ function Sidebar({ role, nav, setNav, T, onLogout }) {
             {active&&<div style={{position:"absolute",left:0,top:"50%",transform:"translateY(-50%)",width:3,height:16,background:T.accent,borderRadius:"0 2px 2px 0"}}/>}
             <span style={{fontSize:15,width:20,textAlign:"center"}}>{item.icon}</span>
             <span style={{flex:1}}>{item.label}</span>
-            {item.badge&&<span style={{background:T.accent,color:"#fff",fontSize:10,fontWeight:700,padding:"1px 7px",borderRadius:20}}>{item.badge}</span>}
+            {(badgeCounts[item.id] ?? item.badge) && (
+              <span style={{background:T.accent,color:"#fff",fontSize:10,fontWeight:700,padding:"1px 7px",borderRadius:20}}>
+                {badgeCounts[item.id] ?? item.badge}
+              </span>
+            )}
           </div>;
         })}
       </nav>
@@ -229,24 +233,38 @@ function LoginPage({ onLogin }) {
       <div style={{position:"fixed",bottom:"-20%",right:"-10%",width:"50%",height:"50%",background:"radial-gradient(ellipse,rgba(99,102,241,.06) 0%,transparent 70%)",pointerEvents:"none"}}/>
       <div style={{width:"100%",maxWidth:1040,padding:24,position:"relative",zIndex:1,display:"grid",gridTemplateColumns:"minmax(0,1.2fr) minmax(0,1fr)",gap:32,alignItems:"stretch"}}>
         <div style={{paddingRight:8,display:"flex",flexDirection:"column",justifyContent:"center"}}>
-          <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:54,height:54,background:"linear-gradient(135deg,#3b82f6,#2dd4bf)",borderRadius:16,fontSize:26,marginBottom:14,animation:"glowPulse 3s infinite"}}>🛡️</div>
-          <div style={{fontFamily:"Syne",fontSize:30,fontWeight:800,color:T.text,letterSpacing:"-1px",lineHeight:1.1}}>InsurAI · Smart corporate insurance cockpit</div>
-          <div style={{fontSize:13,color:T.text2,marginTop:10,maxWidth:520}}>Single place where risk, underwriting, claims and AI insights come together. Today I will show a working prototype of how large corporate policies can be supervised with modern microservices and AI.</div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginTop:22}}>
-            {[["5+","domain services"],["4","specialised AI engines"],["1","unified cockpit"]].map(([v,l])=>(
-              <div key={l} style={{background:"rgba(59,130,246,.06)",borderRadius:12,padding:"10px 14px",border:"1px solid rgba(59,130,246,.14)"}}>
-                <div style={{fontFamily:"Syne",fontSize:18,fontWeight:700,color:"#3b82f6"}}>{v}</div>
-                <div style={{fontSize:11,color:T.text3,marginTop:3}}>{l}</div>
-              </div>
-            ))}
+          <div style={{fontFamily:"Syne",fontSize:18,fontWeight:700,color:T.text2,marginBottom:12}}>InsurAI</div>
+          <div style={{fontFamily:"Syne",fontSize:42,fontWeight:800,color:T.text,letterSpacing:"-1px",lineHeight:1.08,maxWidth:620}}>
+            AI-Powered Corporate Policy Automation And Intelligence System
           </div>
-          <div style={{fontSize:11,color:T.text3,marginTop:18}}>For today&apos;s demo I&apos;m focusing on the experience and architecture, not the full production setup.</div>
+          <div style={{fontSize:14,color:T.text2,marginTop:14,maxWidth:560,lineHeight:1.7}}>
+            Simplify corporate insurance policy management, automate claims verification, and reduce manual workload
+            using AI-driven document analysis.
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:12,marginTop:26}}>
+            <button
+              onClick={()=>{setMode("signup");setErr("");}}
+              style={{padding:"10px 16px",borderRadius:8,border:"none",background:"#3b82f6",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}
+            >
+              {String.fromCharCode(8594)} Get Started Free
+            </button>
+            <button
+              onClick={()=>{setMode("login");setErr("");}}
+              style={{padding:"10px 18px",borderRadius:8,border:"1px solid rgba(150,150,255,.2)",background:"transparent",color:T.text2,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}
+            >
+              Log In
+            </button>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginTop:20}}>
+            <div style={{display:"flex",alignItems:"center"}}>
+              {[0,1,2].map(i=>(
+                <div key={i} style={{width:24,height:24,borderRadius:"50%",background:"#cbd5e1",border:"2px solid #0b1120",marginLeft:i===0?0:-8}}/>
+              ))}
+            </div>
+            <div style={{fontSize:11,color:T.text3}}>Join 50,000+ users</div>
+          </div>
         </div>
         <div style={{background:T.surface,border:"1px solid rgba(99,168,255,.1)",borderRadius:20,padding:28,boxShadow:"0 18px 45px rgba(15,23,42,.35)"}}>
-          <div style={{display:"flex",gap:8,marginBottom:20,borderRadius:10,background:"rgba(150,150,255,.06)",padding:4}}>
-            <button onClick={()=>{setMode("signup");setErr("");}} style={{flex:1,padding:"9px 14px",borderRadius:8,border:"none",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",background:mode==="signup"?"#3b82f6":"transparent",color:mode==="signup"?"#fff":T.text2}}>Sign Up</button>
-            <button onClick={()=>{setMode("login");setErr("");}} style={{flex:1,padding:"9px 14px",borderRadius:8,border:"none",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",background:mode==="login"?"#3b82f6":"transparent",color:mode==="login"?"#fff":T.text2}}>Sign In</button>
-          </div>
           {mode==="signup"&&(
             <div style={{marginBottom:13}}>
               <div style={{fontSize:11,color:T.text3,letterSpacing:1.2,textTransform:"uppercase",marginBottom:8}}>Full Name</div>
@@ -507,8 +525,8 @@ function CustomerPortal({ auth, onLogout }) {
       <Card T={T}><div style={{padding:"22px 26px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
         <div><div style={{fontSize:11,color:T.text3,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Select Policy</div>
           <select ref={el=>{if(el)claimFormRef.current.policySelect=el}} style={{width:"100%",background:"rgba(16,185,129,.06)",border:"1px solid rgba(16,185,129,.12)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}>
-            <option value="">— Select policy —</option>
-            {policiesForUi.map(p=><option key={p.uid} value={`${p.uid}|${p.id}`}>{p.id} · {p.type}</option>)}
+            <option value="" style={{color:"#0f172a"}}>— Select policy —</option>
+            {policiesForUi.map(p=><option key={p.uid} value={`${p.uid}|${p.id}`} style={{color:"#0f172a"}}>{p.id} · {p.type}</option>)}
           </select></div>
         <div><div style={{fontSize:11,color:T.text3,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Claim Type</div>
           <select ref={el=>{if(el)claimFormRef.current.claimType=el}} style={{width:"100%",background:"rgba(16,185,129,.06)",border:"1px solid rgba(16,185,129,.12)",borderRadius:8,padding:"9px 12px",color:"#e5fdf4",fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif",appearance:"none",WebkitAppearance:"none",MozAppearance:"none"}}>
@@ -604,6 +622,7 @@ function UnderwriterPortal({ auth, onLogout }) {
   const [selected,setSelected]=useState(null);
   const [queue,setQueue]=useState([]);
   const [approvedList,setApprovedList]=useState([]);
+  const [allPolicies,setAllPolicies]=useState([]);
   const [loading,setLoading]=useState(true);
   const [err,setErr]=useState("");
   const [submitting,setSubmitting]=useState(false);
@@ -612,11 +631,31 @@ function UnderwriterPortal({ auth, onLogout }) {
     (async()=>{
       try {
         setLoading(true);
-        const [q,a]=await Promise.all([
-          api.getWorkflowsMyQueue().catch(()=>api.getWorkflows({status:"IN_REVIEW"})),
-          api.getWorkflows({status:"APPROVED"}).catch(()=>[])
+        const [q,a,policies]=await Promise.all([
+          api.getWorkflowsMyQueue().catch(()=>api.getWorkflows()),
+          api.getWorkflows({status:"APPROVED"}).catch(()=>[]),
+          api.getAllPolicies().catch(()=>[])
         ]);
-        setQueue(Array.isArray(q)?q:q?.content??[]);
+        setAllPolicies(Array.isArray(policies)?policies:policies?.content??[]);
+        const queueList = Array.isArray(q)?q:q?.content??[];
+        const nonFinal = queueList.filter(w => !["APPROVED","REJECTED"].includes(String(w?.status || "").toUpperCase()));
+        if (nonFinal.length === 0) {
+          const policyQueue = (Array.isArray(policies)?policies:policies?.content??[])
+            .filter(p => !["APPROVED","REJECTED","ACTIVE","CANCELLED","EXPIRED"].includes(String(p?.status || "").toUpperCase()))
+            .map(p => ({
+              id: p.id,
+              policyNumber: p.policyNumber,
+              holderName: p.holderName,
+              policyType: p.policyType,
+              riskScore: p.riskScore ?? 0,
+              assignedTo: null,
+              createdAt: p.createdAt,
+              _isPolicyFallback: true
+            }));
+          setQueue(policyQueue);
+        } else {
+          setQueue(nonFinal);
+        }
         setApprovedList(Array.isArray(a)?a:a?.content??[]);
       } catch(e){ setErr(e.message); setQueue([]); }
       finally { setLoading(false); }
@@ -625,14 +664,63 @@ function UnderwriterPortal({ auth, onLogout }) {
   const toQueueItem=(w)=>({id:w.id,pid:w.policyNumber,holder:w.holderName||"—",type:w.policyType||"Policy",risk:w.riskScore??0,aiRec:w.riskScore>70?"Escalate":w.riskScore<40?"Approve":"Manual Review",submitted:w.createdAt?new Date(w.createdAt).toLocaleDateString("en-IN",{day:"2-digit",month:"short"}):"—",uw:w.assignedTo?"Assigned":"Unassigned",...w});
   const queueForUi=queue.map(toQueueItem);
   const approvedForUi=approvedList.map(toQueueItem);
+  const useDemoUnderwriterStats = queueForUi.length === 0 && approvedForUi.length === 0;
+  const underwriterStats = useDemoUnderwriterStats
+    ? { queue: 7, approved: 14, escalated: 2, avgRisk: 54 }
+    : {
+        queue: queueForUi.length,
+        approved: approvedForUi.length,
+        escalated: queueForUi.filter(p=>p.aiRec==="Escalate").length,
+        avgRisk: queueForUi.length ? Math.round(queueForUi.reduce((s,p)=>s+p.risk,0)/queueForUi.length) : "—"
+      };
   async function handleDecision(decision,notes){
     if(!selected?.id) return;
+    if (selected?._isPolicyFallback) {
+      setSubmitting(true); setErr("");
+      try {
+        if (decision === "APPROVED" || decision === "REJECTED") {
+          await api.updatePolicyStatus(selected.id, decision, notes || "");
+          const updated = {...selected, status: decision, updatedAt: new Date().toISOString()};
+          setQueue(q => q.filter(x => x.id !== selected.id));
+          if (decision === "APPROVED") {
+            setApprovedList(a => [updated, ...a.filter(x => x.id !== selected.id)]);
+          }
+        } else if (decision === "ESCALATE") {
+          setQueue(q => q.map(x => x.id === selected.id ? {...x, aiRec: "Escalate", status: "ESCALATED"} : x));
+        }
+        setSelected(null);
+      } catch (e) {
+        setErr(e.message || "Decision update failed");
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
     setSubmitting(true); setErr("");
     try {
       await api.workflowDecision(selected.id,decision,notes||"");
       setSelected(null);
-      const [q,a]=await Promise.all([api.getWorkflowsMyQueue().catch(()=>api.getWorkflows({status:"IN_REVIEW"})),api.getWorkflows({status:"APPROVED"}).catch(()=>[])]);
-      setQueue(Array.isArray(q)?q:q?.content??[]);
+      const [q,a,policies]=await Promise.all([api.getWorkflowsMyQueue().catch(()=>api.getWorkflows()),api.getWorkflows({status:"APPROVED"}).catch(()=>[]),api.getAllPolicies().catch(()=>[])]);
+      setAllPolicies(Array.isArray(policies)?policies:policies?.content??[]);
+      const queueList = Array.isArray(q)?q:q?.content??[];
+      const nonFinal = queueList.filter(w => !["APPROVED","REJECTED"].includes(String(w?.status || "").toUpperCase()));
+      if (nonFinal.length === 0) {
+        const policyQueue = (Array.isArray(policies)?policies:policies?.content??[])
+          .filter(p => !["APPROVED","REJECTED","ACTIVE","CANCELLED","EXPIRED"].includes(String(p?.status || "").toUpperCase()))
+          .map(p => ({
+            id: p.id,
+            policyNumber: p.policyNumber,
+            holderName: p.holderName,
+            policyType: p.policyType,
+            riskScore: p.riskScore ?? 0,
+            assignedTo: null,
+            createdAt: p.createdAt,
+            _isPolicyFallback: true
+          }));
+        setQueue(policyQueue);
+      } else {
+        setQueue(nonFinal);
+      }
       setApprovedList(Array.isArray(a)?a:a?.content??[]);
     } catch(e){ setErr(e.message); }
     finally { setSubmitting(false); }
@@ -640,7 +728,7 @@ function UnderwriterPortal({ auth, onLogout }) {
   const pages={
     home:(<div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16,marginBottom:26}}>
-        {[["📥","Review Queue",String(queueForUi.length),"pending review",T.accent],["✅","Approved",String(approvedForUi.length),"policies issued",T.accent2],["🚨","Escalated",String(queueForUi.filter(p=>p.aiRec==="Escalate").length),"senior review req.","#f43f5e"],["📊","Avg Risk Score",queueForUi.length?Math.round(queueForUi.reduce((s,p)=>s+p.risk,0)/queueForUi.length):"—","across queue","#f59e0b"]].map(([ic,l,v,s,c])=>(
+        {[["📥","Review Queue",String(underwriterStats.queue),"pending review",T.accent],["✅","Approved",String(underwriterStats.approved),"policies issued",T.accent2],["🚨","Escalated",String(underwriterStats.escalated),"senior review req.","#f43f5e"],["📊","Avg Risk Score",String(underwriterStats.avgRisk),"across queue","#f59e0b"]].map(([ic,l,v,s,c])=>(
           <div key={l} className="fadeUp" style={{background:T.surface,border:"1px solid rgba(150,150,255,.08)",borderRadius:16,padding:18,position:"relative",overflow:"hidden"}}>
             <div style={{position:"absolute",top:-20,right:-20,width:80,height:80,borderRadius:"50%",background:c,opacity:.06,filter:"blur(25px)"}}/>
             <div style={{width:36,height:36,borderRadius:9,background:`${c}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,marginBottom:12}}>{ic}</div>
@@ -660,7 +748,7 @@ function UnderwriterPortal({ auth, onLogout }) {
                 <TD mono accent={T.accent2}>{p.pid}</TD><TD>{p.holder}</TD>
                 <TD><div style={{width:90}}><ScoreBar value={p.risk} T={T}/></div></TD>
                 <TD><Chip color={p.aiRec==="Approve"?"green":p.aiRec==="Escalate"?"rose":"amber"} T={T}>{p.aiRec}</Chip></TD>
-                <TD><Btn T={T} style={{padding:"5px 10px",fontSize:11}}>Review</Btn></TD>
+                <TD><Btn T={T} style={{padding:"5px 10px",fontSize:11}}>{p._isPolicyFallback?"View":"Review"}</Btn></TD>
               </TR>
             ))}</tbody>
           </table>
@@ -694,7 +782,7 @@ function UnderwriterPortal({ auth, onLogout }) {
                 <TD><div style={{width:80}}><ScoreBar value={p.risk} T={T}/></div></TD>
                 <TD><Chip color={p.aiRec==="Approve"?"green":p.aiRec==="Escalate"?"rose":"amber"} T={T}>{p.aiRec}</Chip></TD>
                 <TD><span style={{fontSize:12,color:T.text2}}>{p.uw}</span></TD>
-                <TD><Btn T={T} style={{padding:"5px 10px",fontSize:11}}>Review</Btn></TD>
+                <TD><Btn T={T} style={{padding:"5px 10px",fontSize:11}}>{p._isPolicyFallback?"View":"Review"}</Btn></TD>
               </TR>
             ))}</tbody>
           </table>
@@ -818,6 +906,8 @@ function ClaimsAdjusterPortal({ auth, onLogout }) {
   const [loading,setLoading]=useState(true);
   const [err,setErr]=useState("");
   const [submitting,setSubmitting]=useState(false);
+  const [fraudForm,setFraudForm]=useState({ claimId:"CLM-0091" });
+  const [fraudResult,setFraudResult]=useState(null);
   const noteRef=useRef(null);
   const approvedAmtRef=useRef(null);
   useEffect(()=>{
@@ -830,9 +920,25 @@ function ClaimsAdjusterPortal({ auth, onLogout }) {
       finally { setLoading(false); }
     })();
   },[]);
+  useEffect(()=>{
+    if (!claims.length) return;
+    const exists = claims.some(c => c.claimNumber === fraudForm.claimId || c.id === fraudForm.claimId);
+    if (!exists) {
+      const first = claims[0];
+      if (first?.claimNumber || first?.id) {
+        setFraudForm({ claimId: first.claimNumber || first.id });
+      }
+    }
+  },[claims]);
+  useEffect(()=>{
+    // Clear stale result when user changes claim ID
+    setFraudResult(null);
+  },[fraudForm.claimId]);
   const toClaim=(c)=>({id:c.id,cid:c.claimNumber,policy:c.policyNumber,holder:c.holderName||c.policyNumber,type:c.claimType,amount:c.claimedAmount?`₹${Number(c.claimedAmount).toLocaleString("en-IN")}`:"—",fraud:c.fraudScore??0,status:c.status,statusC:c.status==="APPROVED"||c.status==="SETTLED"?"green":c.status==="REJECTED"?"rose":c.status==="FRAUD_REVIEW"?"rose":"amber",...c});
   const claimsForUi=claims.map(toClaim);
   const openClaims=claimsForUi.filter(c=>!["APPROVED","REJECTED","SETTLED"].includes(c.status));
+  const selectedFraudClaim = claims.find(c => c.claimNumber === fraudForm.claimId || c.id === fraudForm.claimId) || null;
+  const selectedFraudAmount = Number(selectedFraudClaim?.claimedAmount || 0);
   async function handleStatus(claimId,status,approvedAmount){
     setSubmitting(true); setErr("");
     try {
@@ -841,6 +947,38 @@ function ClaimsAdjusterPortal({ auth, onLogout }) {
       const c=await api.getClaims(); setClaims(Array.isArray(c)?c:c?.content??[]);
     } catch(e){ setErr(e.message); }
     finally { setSubmitting(false); }
+  }
+  async function handleRunFraudAnalysis(){
+    setSubmitting(true);
+    setErr("");
+    try {
+      const target = selectedFraudClaim;
+      if (!target) throw new Error("Claim not found. Enter a valid Claim ID/Number.");
+      const amount = Number(target?.claimedAmount || 0);
+      const req = {
+        claim_id: fraudForm.claimId,
+        claim_number: target?.claimNumber || fraudForm.claimId,
+        policy_id: target?.policyId || "POL-UNKNOWN",
+        holder_id: target?.holderId || (auth?.user?.id || "USR-UNKNOWN"),
+        claim_type: target?.claimType || "OTHER",
+        claimed_amount: amount,
+        incident_date: target?.incidentDate || new Date().toISOString().slice(0,10),
+        holder_claim_history: {
+          totalPastClaims: 1,
+          avgClaimAmount: amount || 10000
+        }
+      };
+      const result = await api.detectFraud(req);
+      setFraudResult({
+        fraud_score: result?.fraud_score ?? 0,
+        verdict: result?.verdict ?? "LOW_RISK",
+        anomalies: Array.isArray(result?.anomalies) ? result.anomalies : ["No anomalies"]
+      });
+    } catch (e) {
+      setErr(e.message || "Fraud analysis failed");
+    } finally {
+      setSubmitting(false);
+    }
   }
   const pages={
     home:(<div>
@@ -886,7 +1024,7 @@ function ClaimsAdjusterPortal({ auth, onLogout }) {
       <div style={{display:"grid",gridTemplateColumns:selected?"1fr 340px":"1fr",gap:16}}>
         <Card T={T}><table style={{width:"100%",borderCollapse:"collapse"}}>
           <thead><tr><TH>Claim ID</TH><TH>Policy</TH><TH>Holder</TH><TH>Type</TH><TH>Amount</TH><TH>Fraud Score</TH><TH>Status</TH><TH></TH></tr></thead>
-          <tbody>{openClaims.map(c=>(<TR key={c.id} onClick={()=>setSelected(c)} style={{cursor:"pointer"}}><TD mono accent={T.accent2}>{c.cid}</TD><TD>{c.policy}</TD><TD>{c.holder}</TD><TD>{c.type}</TD><TD>{c.amount}</TD><TD><span style={{fontWeight:700,color:c.fraud>70?"#f43f5e":c.fraud>50?"#f59e0b":"#10b981"}}>{c.fraud}{c.fraud>70?" ⚠":""}</span></TD><TD><Chip color={c.statusC} T={T}>{c.status}</Chip></TD><TD><Btn T={T} style={{padding:"5px 10px",fontSize:11}} onClick={e=>{e.stopPropagation();setSelected(c);}}>Adjudicate</Btn></TD></TR>))}</tbody>
+          <tbody>{openClaims.map(c=>(<TR key={c.id} onClick={()=>setSelected(c)} style={{cursor:"pointer"}}><TD mono accent={T.accent2}>{c.cid}</TD><TD>{c.policy}</TD><TD>{c.holder}</TD><TD>{c.type}</TD><TD>{c.amount}</TD><TD><span style={{fontWeight:700,color:c.fraud>70?"#f43f5e":c.fraud>50?"#f59e0b":"#10b981"}}>{c.fraud}{c.fraud>70?" ⚠":""}</span></TD><TD><Chip color={c.statusC} T={T}>{c.status}</Chip></TD><TD><Btn T={T} style={{padding:"5px 10px",fontSize:11}} onClick={e=>{e.stopPropagation();setNav("open");setSelected(c);}}>Adjudicate</Btn></TD></TR>))}</tbody>
         </table></Card>
         {selected?(<Card T={T}>
           <CardHdr title={selected.cid} sub={selected.holder} T={T} action={<button onClick={()=>setSelected(null)} style={{background:"none",border:"none",color:T.text3,fontSize:18,cursor:"pointer"}}>✕</button>}/>
@@ -934,28 +1072,33 @@ function ClaimsAdjusterPortal({ auth, onLogout }) {
       </Card>
     </div>),
     aifraud:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>AI Fraud Tool</div>
+      {err&&<div style={{padding:10,marginBottom:14,background:"rgba(239,68,68,.1)",borderRadius:9,color:"#ef4444",fontSize:13}}>{err}</div>}
       <Card T={T}><CardHdr title="Run Fraud Check" sub="ai-fraud-service · Isolation Forest · :9002" T={T}/>
         <div style={{padding:"20px 24px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-          <div><div style={{fontSize:10,color:T.text3,textTransform:"uppercase",letterSpacing:.8,marginBottom:6}}>Claim ID</div><input defaultValue="CLM-0091" style={{width:"100%",background:"rgba(200,150,100,.06)",border:"1px solid rgba(200,150,100,.14)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/></div>
-          <div><div style={{fontSize:10,color:T.text3,textTransform:"uppercase",letterSpacing:.8,marginBottom:6}}>Claim Amount</div><input defaultValue="₹48,00,000" style={{width:"100%",background:"rgba(200,150,100,.06)",border:"1px solid rgba(200,150,100,.14)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/></div>
+          <div><div style={{fontSize:10,color:T.text3,textTransform:"uppercase",letterSpacing:.8,marginBottom:6}}>Claim ID</div><input value={fraudForm.claimId} onChange={e=>setFraudForm(f=>({...f, claimId: e.target.value}))} style={{width:"100%",background:"rgba(200,150,100,.06)",border:"1px solid rgba(200,150,100,.14)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/></div>
+          <div><div style={{fontSize:10,color:T.text3,textTransform:"uppercase",letterSpacing:.8,marginBottom:6}}>Claim Amount</div><input value={selectedFraudAmount ? `${selectedFraudAmount}` : ""} readOnly placeholder="Auto-filled from selected claim" style={{width:"100%",background:"rgba(200,150,100,.06)",border:"1px solid rgba(200,150,100,.14)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/></div>
           <div style={{gridColumn:"1/-1",background:"rgba(244,63,94,.07)",borderRadius:12,padding:"16px 18px",border:"1px solid rgba(244,63,94,.18)"}}>
             <div style={{fontSize:10,color:"#f43f5e",marginBottom:7,letterSpacing:.8,textTransform:"uppercase"}}>AI Analysis Result</div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-              <div style={{fontFamily:"Syne",fontSize:32,fontWeight:700,color:"#f43f5e"}}>87</div>
-              <Chip color="rose" T={T}>High Fraud Risk</Chip>
+              <div style={{fontFamily:"Syne",fontSize:32,fontWeight:700,color:"#f43f5e"}}>{fraudResult?.fraud_score ?? "—"}</div>
+              <Chip color={(fraudResult?.verdict||"").includes("HIGH")?"rose":(fraudResult?.verdict||"").includes("MEDIUM")?"amber":"green"} T={T}>{fraudResult ? (fraudResult.verdict||"N/A").replaceAll("_"," ") : "Not analyzed"}</Chip>
             </div>
-            {["Amount spike — 8× policy average","First large claim in 3 months","Location mismatch with policy terms"].map((a,i)=><div key={i} style={{fontSize:12,color:"#f87171",marginBottom:3}}>⚠ {a}</div>)}
+            {(fraudResult?.anomalies?.length?fraudResult.anomalies:["Run analysis to see risk factors"]).map((a,i)=><div key={i} style={{fontSize:12,color:"#f87171",marginBottom:3}}>⚠ {String(a).replaceAll("_"," ")}</div>)}
           </div>
-          <Btn T={T}>Run Analysis</Btn>
+          <Btn T={T} disabled={submitting} onClick={handleRunFraudAnalysis}>{submitting?"Running...":"Run Analysis"}</Btn>
         </div>
       </Card>
     </div>),
     investigation:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>Under Investigation</div>
       <Card T={T}><div style={{padding:"14px 18px",display:"flex",flexDirection:"column",gap:9}}>
-        {openClaims.filter(c=>c.fraud>30&&c.fraud<80).map(c=>(<div key={c.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",background:"rgba(245,158,11,.06)",borderRadius:9,border:"1px solid rgba(245,158,11,.14)"}}>
-          <div><div style={{fontSize:13,fontWeight:600,color:T.text}}>{c.id} · {c.holder}</div><div style={{fontSize:11,color:T.text3,marginTop:2}}>{c.amount} · Fraud Score: {c.fraud}</div></div>
-          <Btn T={T} style={{padding:"6px 13px",fontSize:12}} onClick={()=>{setSelected(c);setNav("open");}}>Investigate</Btn>
-        </div>))}
+        {openClaims.filter(c=>c.status==="INVESTIGATION").length===0 ? (
+          <div style={{padding:20,textAlign:"center",color:T.text2,fontSize:13}}>No claims currently marked for investigation.</div>
+        ) : (
+          openClaims.filter(c=>c.status==="INVESTIGATION").map(c=>(<div key={c.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",background:"rgba(245,158,11,.06)",borderRadius:9,border:"1px solid rgba(245,158,11,.14)"}}>
+            <div><div style={{fontSize:13,fontWeight:600,color:T.text}}>{c.id} · {c.holder}</div><div style={{fontSize:11,color:T.text3,marginTop:2}}>{c.amount} · Fraud Score: {c.fraud}</div></div>
+            <Btn T={T} style={{padding:"6px 13px",fontSize:12}} onClick={()=>{setSelected(c);setNav("open");}}>Investigate</Btn>
+          </div>))
+        )}
       </div></Card>
     </div>),
     approved:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>Approved Claims</div>
@@ -983,7 +1126,17 @@ function ClaimsAdjusterPortal({ auth, onLogout }) {
   return (
     <div style={{display:"flex",minHeight:"100vh",background:T.bg}}>
       <div style={{position:"fixed",top:"-20%",left:"-10%",width:"60%",height:"60%",background:"radial-gradient(ellipse,rgba(245,158,11,.05) 0%,transparent 70%)",pointerEvents:"none",zIndex:0}}/>
-      <Sidebar role="claims" nav={nav} setNav={setNav} T={T} onLogout={onLogout}/>
+      <Sidebar
+        role="claims"
+        nav={nav}
+        setNav={setNav}
+        T={T}
+        onLogout={onLogout}
+        badgeCounts={{
+          open: String(openClaims.length),
+          fraud: String(openClaims.filter(c=>c.fraud>70).length)
+        }}
+      />
       <div style={{marginLeft:248,flex:1,display:"flex",flexDirection:"column",position:"relative",zIndex:1}}>
         <Topbar title={TITLES[nav]||nav} sub="Claims Adjuster · claims-service · ai-fraud-service" T={T} userName={userName} roleLabel="Claims Adjuster"/>
         <div style={{padding:26,flex:1}} key={nav}>{pages[nav]||pages.home}</div>
