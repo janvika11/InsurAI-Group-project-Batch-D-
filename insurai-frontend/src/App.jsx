@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { api, setToken, getToken, roleToPortal } from "./api";
+import { createT, LANGS, getInitialLang, persistLang } from "./i18n";
 
 const GLOBAL = `
   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
@@ -103,32 +104,61 @@ function TR({ children, onClick }) {
   return <tr style={{background:hov?"rgba(150,150,255,.05)":"transparent",cursor:onClick?"pointer":"default",transition:"background .15s"}} onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)} onClick={onClick}>{children}</tr>;
 }
 
-function Sidebar({ role, nav, setNav, T, onLogout, badgeCounts = {} }) {
+function LangSelect({ lang, setLang, T, fullWidth }) {
+  return (
+    <select
+      value={lang}
+      onChange={(e) => { const v = e.target.value; setLang(v); persistLang(v); }}
+      style={{
+        background: "rgba(150,150,255,.06)",
+        border: "1px solid rgba(150,150,255,.12)",
+        color: T.text2,
+        borderRadius: 8,
+        padding: "6px 10px",
+        fontSize: 12,
+        cursor: "pointer",
+        fontFamily: "'DM Sans',sans-serif",
+        maxWidth: fullWidth ? "100%" : 140,
+        width: fullWidth ? "100%" : "auto",
+        boxSizing: "border-box",
+      }}
+    >
+      {Object.entries(LANGS).map(([code, name]) => (
+        <option key={code} value={code}>{name}</option>
+      ))}
+    </select>
+  );
+}
+
+function Sidebar({ role, nav, setNav, T, onLogout, badgeCounts = {}, lang, setLang, t }) {
   const NAVS = {
-    customer:    [{id:"home",icon:"🏠",label:"My Dashboard"},{id:"policies",icon:"📋",label:"My Policies"},{id:"apply",icon:"✨",label:"Apply for Policy"},{id:"claims",icon:"📁",label:"My Claims"},{id:"fileclaim",icon:"📝",label:"File a Claim"},{id:"renewals",icon:"🔁",label:"Renewals"},{id:"assistant",icon:"💬",label:"AI Assistant"},{id:"documents",icon:"📎",label:"My Documents"}],
-    underwriter: [{id:"home",icon:"⬡",label:"Dashboard"},{id:"queue",icon:"📥",label:"Review Queue",badge:"7"},{id:"policies",icon:"📋",label:"All Policies"},{id:"risk",icon:"📊",label:"Risk Analysis"},{id:"rules",icon:"⚖️",label:"Rules Engine"},{id:"approved",icon:"✅",label:"Approved"},{id:"escalated",icon:"🚨",label:"Escalated",badge:"2"},{id:"reports",icon:"📈",label:"Reports"}],
-    claims:      [{id:"home",icon:"⬡",label:"Dashboard"},{id:"open",icon:"📂",label:"Open Claims",badge:"12"},{id:"fraud",icon:"🔍",label:"Fraud Alerts",badge:"3"},{id:"investigation",icon:"🔎",label:"Investigation"},{id:"approved",icon:"✅",label:"Approved Claims"},{id:"settle",icon:"💰",label:"Settlements"},{id:"aifraud",icon:"🤖",label:"AI Fraud Tool"},{id:"reports",icon:"📈",label:"Reports"}],
-    admin:       [{id:"home",icon:"⬡",label:"Dashboard"},{id:"users",icon:"👥",label:"User Management"},{id:"services",icon:"⚙️",label:"Microservices"},{id:"kafka",icon:"⚡",label:"Kafka Monitor"},{id:"rules",icon:"⚖️",label:"Rules Engine"},{id:"audit",icon:"🔒",label:"Audit Logs"},{id:"config",icon:"🛠️",label:"System Config"},{id:"reports",icon:"📈",label:"Reports"}],
-    ai:          [{id:"home",icon:"⬡",label:"AI Overview"},{id:"risk",icon:"📊",label:"Risk Service"},{id:"fraud",icon:"🔍",label:"Fraud Service"},{id:"document",icon:"📄",label:"Document Service"},{id:"assistant",icon:"💬",label:"Assistant Service"},{id:"kafka",icon:"⚡",label:"Event Stream"},{id:"models",icon:"🧠",label:"Model Registry"},{id:"logs",icon:"📋",label:"Inference Logs"}],
+    customer:    [{id:"home",icon:"🏠",labelKey:"sidebar.customer.home"},{id:"policies",icon:"📋",labelKey:"sidebar.customer.policies"},{id:"apply",icon:"✨",labelKey:"sidebar.customer.apply"},{id:"claims",icon:"📁",labelKey:"sidebar.customer.claims"},{id:"fileclaim",icon:"📝",labelKey:"sidebar.customer.fileclaim"},{id:"renewals",icon:"🔁",labelKey:"sidebar.customer.renewals"},{id:"assistant",icon:"💬",labelKey:"sidebar.customer.assistant"},{id:"documents",icon:"📎",labelKey:"sidebar.customer.documents"}],
+    underwriter: [{id:"home",icon:"⬡",labelKey:"sidebar.underwriter.home"},{id:"queue",icon:"📥",labelKey:"sidebar.underwriter.queue",badge:"7"},{id:"policies",icon:"📋",labelKey:"sidebar.underwriter.policies"},{id:"risk",icon:"📊",labelKey:"sidebar.underwriter.risk"},{id:"rules",icon:"⚖️",labelKey:"sidebar.underwriter.rules"},{id:"approved",icon:"✅",labelKey:"sidebar.underwriter.approved"},{id:"escalated",icon:"🚨",labelKey:"sidebar.underwriter.escalated",badge:"2"},{id:"reports",icon:"📈",labelKey:"sidebar.underwriter.reports"}],
+    claims:      [{id:"home",icon:"⬡",labelKey:"sidebar.claims.home"},{id:"open",icon:"📂",labelKey:"sidebar.claims.open",badge:"12"},{id:"fraud",icon:"🔍",labelKey:"sidebar.claims.fraud",badge:"3"},{id:"investigation",icon:"🔎",labelKey:"sidebar.claims.investigation"},{id:"approved",icon:"✅",labelKey:"sidebar.claims.approved"},{id:"settle",icon:"💰",labelKey:"sidebar.claims.settle"},{id:"aifraud",icon:"🤖",labelKey:"sidebar.claims.aifraud"},{id:"reports",icon:"📈",labelKey:"sidebar.claims.reports"}],
+    admin:       [{id:"home",icon:"⬡",labelKey:"sidebar.admin.home"},{id:"users",icon:"👥",labelKey:"sidebar.admin.users"},{id:"services",icon:"⚙️",labelKey:"sidebar.admin.services"},{id:"kafka",icon:"⚡",labelKey:"sidebar.admin.kafka"},{id:"rules",icon:"⚖️",labelKey:"sidebar.admin.rules"},{id:"audit",icon:"🔒",labelKey:"sidebar.admin.audit"},{id:"config",icon:"🛠️",labelKey:"sidebar.admin.config"},{id:"reports",icon:"📈",labelKey:"sidebar.admin.reports"}],
+    ai:          [{id:"home",icon:"⬡",labelKey:"sidebar.ai.home"},{id:"risk",icon:"📊",labelKey:"sidebar.ai.risk"},{id:"fraud",icon:"🔍",labelKey:"sidebar.ai.fraud"},{id:"document",icon:"📄",labelKey:"sidebar.ai.document"},{id:"assistant",icon:"💬",labelKey:"sidebar.ai.assistant"},{id:"kafka",icon:"⚡",labelKey:"sidebar.ai.kafka"},{id:"models",icon:"🧠",labelKey:"sidebar.ai.models"},{id:"logs",icon:"📋",labelKey:"sidebar.ai.logs"}],
   };
   const ROLE_META = {
-    customer:    {icon:"🧑‍💼",label:"Customer Portal",   color:"#10b981"},
-    underwriter: {icon:"🔍", label:"Underwriter Portal",color:"#6366f1"},
-    claims:      {icon:"⚖️", label:"Claims Adjuster",   color:"#f59e0b"},
-    admin:       {icon:"🛡️", label:"Admin Portal",      color:"#3b82f6"},
-    ai:          {icon:"🤖", label:"AI Analyst Portal", color:"#8b5cf6"},
+    customer:    {icon:"🧑‍💼",labelKey:"meta.customerPortal",   color:"#10b981"},
+    underwriter: {icon:"🔍", labelKey:"meta.underwriterPortal",color:"#6366f1"},
+    claims:      {icon:"⚖️", labelKey:"meta.claimsPortal",   color:"#f59e0b"},
+    admin:       {icon:"🛡️", labelKey:"meta.adminPortal",      color:"#3b82f6"},
+    ai:          {icon:"🤖", labelKey:"meta.aiPortal", color:"#8b5cf6"},
   };
   const meta=ROLE_META[role];
   const items=NAVS[role]||[];
   return (
     <aside style={{width:248,background:T.surface,borderRight:"1px solid rgba(150,150,255,.08)",display:"flex",flexDirection:"column",position:"fixed",height:"100vh",left:0,top:0,zIndex:100}}>
       <div style={{padding:"22px 20px 18px",borderBottom:"1px solid rgba(150,150,255,.07)"}}>
-        <div style={{display:"flex",alignItems:"center",gap:11}}>
-          <div style={{width:36,height:36,background:`linear-gradient(135deg,${meta.color},${meta.color}88)`,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,boxShadow:`0 0 18px ${meta.color}44`}}>{meta.icon}</div>
-          <div>
-            <div style={{fontFamily:"Syne",fontWeight:800,fontSize:18,letterSpacing:"-.5px",color:T.text}}>Insur<span style={{color:T.accent2}}>AI</span></div>
-            <div style={{fontSize:9,color:T.text3,letterSpacing:1.4,textTransform:"uppercase"}}>{meta.label}</div>
+        <div style={{display:"flex",alignItems:"flex-start",gap:11}}>
+          <div style={{width:36,height:36,flexShrink:0,background:`linear-gradient(135deg,${meta.color},${meta.color}88)`,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,boxShadow:`0 0 18px ${meta.color}44`}}>{meta.icon}</div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontFamily:"Syne",fontWeight:800,fontSize:18,letterSpacing:"-.5px",color:T.text,lineHeight:1.2}}>Insur<span style={{color:T.accent2}}>AI</span></div>
+            <div style={{fontSize:9,color:T.text3,letterSpacing:1.4,textTransform:"uppercase",marginTop:2}}>{t(meta.labelKey)}</div>
           </div>
+        </div>
+        <div style={{marginTop:14,display:"flex",width:"100%"}}>
+          <LangSelect lang={lang} setLang={setLang} T={T} fullWidth />
         </div>
       </div>
       <nav style={{flex:1,padding:"14px 10px",overflowY:"auto"}}>
@@ -139,7 +169,7 @@ function Sidebar({ role, nav, setNav, T, onLogout, badgeCounts = {} }) {
             onMouseLeave={e=>{if(!active)e.currentTarget.style.background="transparent";}}>
             {active&&<div style={{position:"absolute",left:0,top:"50%",transform:"translateY(-50%)",width:3,height:16,background:T.accent,borderRadius:"0 2px 2px 0"}}/>}
             <span style={{fontSize:15,width:20,textAlign:"center"}}>{item.icon}</span>
-            <span style={{flex:1}}>{item.label}</span>
+            <span style={{flex:1}}>{t(item.labelKey)}</span>
             {(badgeCounts[item.id] ?? item.badge) && (
               <span style={{background:T.accent,color:"#fff",fontSize:10,fontWeight:700,padding:"1px 7px",borderRadius:20}}>
                 {badgeCounts[item.id] ?? item.badge}
@@ -150,14 +180,15 @@ function Sidebar({ role, nav, setNav, T, onLogout, badgeCounts = {} }) {
       </nav>
       <div style={{padding:12,borderTop:"1px solid rgba(150,150,255,.07)"}}>
         <button onClick={onLogout} style={{width:"100%",display:"flex",alignItems:"center",gap:10,padding:"9px 11px",borderRadius:9,background:"rgba(244,63,94,.08)",border:"1px solid rgba(244,63,94,.15)",color:"#f87171",fontSize:13,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>
-          <span>🚪</span> Sign Out
+          <span>🚪</span> {t("auth.signOut")}
         </button>
       </div>
     </aside>
   );
 }
 
-function Topbar({ title, sub, T, userName, roleLabel }) {
+function Topbar({ title, sub, T, userName, roleLabel, t }) {
+  const tr = t || ((k) => k);
   return <header style={{height:58,background:`${T.bg}dd`,borderBottom:"1px solid rgba(150,150,255,.07)",display:"flex",alignItems:"center",padding:"0 26px",gap:16,position:"sticky",top:0,zIndex:50,backdropFilter:"blur(20px)"}}>
     <div style={{flex:1}}>
       <div style={{fontFamily:"Syne",fontSize:15,fontWeight:700,color:T.text}}>{title}</div>
@@ -165,12 +196,12 @@ function Topbar({ title, sub, T, userName, roleLabel }) {
     </div>
     <div style={{display:"flex",alignItems:"center",gap:10}}>
       <div style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:T.text2,background:"rgba(16,185,129,.08)",border:"1px solid rgba(16,185,129,.18)",borderRadius:20,padding:"3px 10px"}}>
-        <PulseDot color="#10b981"/> Online
+        <PulseDot color="#10b981"/> {tr("topbar.online")}
       </div>
       <div style={{display:"flex",alignItems:"center",gap:9,padding:"6px 12px",background:"rgba(150,150,255,.06)",borderRadius:9,border:"1px solid rgba(150,150,255,.1)"}}>
         <div style={{width:28,height:28,borderRadius:7,background:`linear-gradient(135deg,${T.accent},${T.accent2})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"#fff"}}>{(userName||"U")[0]}</div>
         <div>
-          <div style={{fontSize:12,fontWeight:500,color:T.text}}>{userName||"User"}</div>
+          <div style={{fontSize:12,fontWeight:500,color:T.text}}>{userName||tr("common.user")}</div>
           <div style={{fontSize:10,color:T.text3}}>{roleLabel}</div>
         </div>
       </div>
@@ -178,8 +209,9 @@ function Topbar({ title, sub, T, userName, roleLabel }) {
   </header>;
 }
 
-function LoginPage({ onLogin }) {
+function LoginPage({ onLogin, lang, setLang }) {
   const T=THEMES.login;
+  const t = useMemo(() => createT(lang), [lang]);
   const [mode,setMode]=useState("signup");
   const [role,setRole]=useState("customer");
   const [fullName,setFullName]=useState("");
@@ -188,71 +220,83 @@ function LoginPage({ onLogin }) {
   const [loading,setLoading]=useState(false);
   const [err,setErr]=useState("");
   const roles=[
-    {id:"customer",   icon:"🧑‍💼",label:"Customer",       sub:"View & manage your policies",  color:"#10b981"},
-    {id:"underwriter",icon:"🔍", label:"Underwriter",    sub:"Review & approve policy apps", color:"#6366f1"},
-    {id:"claims",     icon:"⚖️", label:"Claims Adjuster",sub:"Investigate & settle claims",  color:"#f59e0b"},
-    {id:"admin",      icon:"🛡️", label:"Admin",           sub:"Full system management",       color:"#3b82f6"},
-    {id:"ai",         icon:"🤖", label:"AI Analyst",      sub:"Monitor AI services & models", color:"#8b5cf6"},
+    {id:"customer",   icon:"🧑‍💼",labelKey:"auth.customer",       subKey:"auth.customerSub",  color:"#10b981"},
+    {id:"underwriter",icon:"🔍", labelKey:"auth.underwriter",    subKey:"auth.underwriterSub", color:"#6366f1"},
+    {id:"claims",     icon:"⚖️", labelKey:"auth.claimsAdjuster",subKey:"auth.claimsSub",  color:"#f59e0b"},
+    {id:"admin",      icon:"🛡️", labelKey:"auth.admin",           subKey:"auth.adminSub",       color:"#3b82f6"},
+    {id:"ai",         icon:"🤖", labelKey:"auth.aiAnalyst",      subKey:"auth.aiSub", color:"#8b5cf6"},
   ];
   const roleToApi=(r)=>r==="customer"?"CUSTOMER":r==="underwriter"?"UNDERWRITER":r==="claims"?"CLAIMS_ADJUSTER":r==="admin"?"ADMIN":r==="ai"?"AI_ANALYST":"CUSTOMER";
+  const isValidEmail=(s)=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s).trim().toLowerCase());
+  function authErrMessage(e,fallbackKey){
+    const msg=e?.message||"";
+    if(msg==="Failed to fetch"||e?.name==="TypeError"||/network/i.test(msg))return t("auth.networkError");
+    return msg||t(fallbackKey);
+  }
   async function handleSignUp(){
-    if(!fullName?.trim()){setErr("Enter your full name");return;}
-    if(!email?.trim()){setErr("Enter your email");return;}
-    if(!pass||pass.length<6){setErr("Password must be at least 6 characters");return;}
+    if(!fullName?.trim()){setErr(t("auth.enterFullName"));return;}
+    const emailNorm=email.trim().toLowerCase();
+    if(!emailNorm){setErr(t("auth.enterEmail"));return;}
+    if(!isValidEmail(emailNorm)){setErr(t("auth.invalidEmail"));return;}
+    if(!pass||pass.length<6){setErr(t("auth.passMin"));return;}
     setErr("");setLoading(true);
     try {
-      const res = await api.register(email.trim(), pass, fullName.trim(), roleToApi(role));
+      const res = await api.register(emailNorm, pass, fullName.trim(), roleToApi(role));
       setToken(res.accessToken);
       if (res.refreshToken) localStorage.setItem("insurai_refresh", res.refreshToken);
       const portalRole = roleToPortal(res.user?.roles) || role;
       onLogin({ user: res.user, role: portalRole });
     } catch (e) {
-      setErr(e.message || "Sign up failed");
+      setErr(authErrMessage(e,"auth.signUpFailed"));
     } finally {
       setLoading(false);
     }
   }
   async function handleLogin(){
-    if(!email||!pass){setErr("Enter email and password");return;}
+    const emailNorm=email.trim().toLowerCase();
+    if(!emailNorm||!pass){setErr(t("auth.enterEmailPass"));return;}
+    if(!isValidEmail(emailNorm)){setErr(t("auth.invalidEmail"));return;}
     setErr("");setLoading(true);
     try {
-      const res = await api.login(email, pass);
+      const res = await api.login(emailNorm, pass);
       setToken(res.accessToken);
       if (res.refreshToken) localStorage.setItem("insurai_refresh", res.refreshToken);
       const portalRole = roleToPortal(res.user?.roles) || role;
       onLogin({ user: res.user, role: portalRole });
     } catch (e) {
-      setErr(e.message || "Login failed");
+      setErr(authErrMessage(e,"auth.loginFailed"));
     } finally {
       setLoading(false);
     }
   }
   return (
     <div style={{minHeight:"100vh",background:T.bg,display:"flex",alignItems:"center",justifyContent:"center",position:"relative",overflow:"hidden"}}>
+      <div style={{position:"absolute",top:16,right:20,zIndex:5}}>
+        <LangSelect lang={lang} setLang={setLang} T={T} />
+      </div>
       <div style={{position:"fixed",top:"-20%",left:"-10%",width:"60%",height:"60%",background:"radial-gradient(ellipse,rgba(59,130,246,.08) 0%,transparent 70%)",pointerEvents:"none"}}/>
       <div style={{position:"fixed",bottom:"-20%",right:"-10%",width:"50%",height:"50%",background:"radial-gradient(ellipse,rgba(99,102,241,.06) 0%,transparent 70%)",pointerEvents:"none"}}/>
       <div style={{width:"100%",maxWidth:1040,padding:24,position:"relative",zIndex:1,display:"grid",gridTemplateColumns:"minmax(0,1.2fr) minmax(0,1fr)",gap:32,alignItems:"stretch"}}>
         <div style={{paddingRight:8,display:"flex",flexDirection:"column",justifyContent:"center"}}>
           <div style={{fontFamily:"Syne",fontSize:18,fontWeight:700,color:T.text2,marginBottom:12}}>InsurAI</div>
           <div style={{fontFamily:"Syne",fontSize:42,fontWeight:800,color:T.text,letterSpacing:"-1px",lineHeight:1.08,maxWidth:620}}>
-            AI-Powered Corporate Policy Automation And Intelligence System
+            {t("landing.headline")}
           </div>
           <div style={{fontSize:14,color:T.text2,marginTop:14,maxWidth:560,lineHeight:1.7}}>
-            Simplify corporate insurance policy management, automate claims verification, and reduce manual workload
-            using AI-driven document analysis.
+            {t("landing.subheadline")}
           </div>
           <div style={{display:"flex",alignItems:"center",gap:12,marginTop:26}}>
             <button
               onClick={()=>{setMode("signup");setErr("");}}
               style={{padding:"10px 16px",borderRadius:8,border:"none",background:"#3b82f6",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}
             >
-              {String.fromCharCode(8594)} Get Started Free
+              {String.fromCharCode(8594)} {t("auth.getStarted")}
             </button>
             <button
               onClick={()=>{setMode("login");setErr("");}}
               style={{padding:"10px 18px",borderRadius:8,border:"1px solid rgba(150,150,255,.2)",background:"transparent",color:T.text2,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}
             >
-              Log In
+              {t("auth.logIn")}
             </button>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:10,marginTop:20}}>
@@ -261,26 +305,26 @@ function LoginPage({ onLogin }) {
                 <div key={i} style={{width:24,height:24,borderRadius:"50%",background:"#cbd5e1",border:"2px solid #0b1120",marginLeft:i===0?0:-8}}/>
               ))}
             </div>
-            <div style={{fontSize:11,color:T.text3}}>Join 50,000+ users</div>
+            <div style={{fontSize:11,color:T.text3}}>{t("landing.join")}</div>
           </div>
         </div>
         <div style={{background:T.surface,border:"1px solid rgba(99,168,255,.1)",borderRadius:20,padding:28,boxShadow:"0 18px 45px rgba(15,23,42,.35)"}}>
           {mode==="signup"&&(
             <div style={{marginBottom:13}}>
-              <div style={{fontSize:11,color:T.text3,letterSpacing:1.2,textTransform:"uppercase",marginBottom:8}}>Full Name</div>
-              <input value={fullName} onChange={e=>setFullName(e.target.value)} placeholder="Your full name" style={{width:"100%",background:"rgba(150,150,255,.06)",border:"1px solid rgba(150,150,255,.12)",borderRadius:9,padding:"10px 13px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/>
+              <div style={{fontSize:11,color:T.text3,letterSpacing:1.2,textTransform:"uppercase",marginBottom:8}}>{t("auth.fullName")}</div>
+              <input value={fullName} onChange={e=>setFullName(e.target.value)} placeholder={t("auth.enterFullName")} style={{width:"100%",background:"rgba(150,150,255,.06)",border:"1px solid rgba(150,150,255,.12)",borderRadius:9,padding:"10px 13px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/>
             </div>
           )}
           {mode==="signup"&&(
             <div style={{marginBottom:20}}>
-              <div style={{fontSize:11,color:T.text3,letterSpacing:1.2,textTransform:"uppercase",marginBottom:12}}>Select Your Role</div>
+              <div style={{fontSize:11,color:T.text3,letterSpacing:1.2,textTransform:"uppercase",marginBottom:12}}>{t("auth.selectRole")}</div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
                 {roles.slice(0,4).map(r=>(
                   <div key={r.id} onClick={()=>setRole(r.id)} style={{padding:"11px 13px",borderRadius:11,cursor:"pointer",border:`1.5px solid ${role===r.id?r.color+"88":"rgba(150,150,255,.1)"}`,background:role===r.id?`${r.color}12`:"rgba(150,150,255,.04)",transition:"all .2s",display:"flex",alignItems:"center",gap:9}}>
                     <span style={{fontSize:17}}>{r.icon}</span>
                     <div>
-                      <div style={{fontSize:12,fontWeight:600,color:role===r.id?r.color:T.text}}>{r.label}</div>
-                      <div style={{fontSize:10,color:T.text3,marginTop:1}}>{r.sub}</div>
+                      <div style={{fontSize:12,fontWeight:600,color:role===r.id?r.color:T.text}}>{t(r.labelKey)}</div>
+                      <div style={{fontSize:10,color:T.text3,marginTop:1}}>{t(r.subKey)}</div>
                     </div>
                   </div>
                 ))}
@@ -289,40 +333,41 @@ function LoginPage({ onLogin }) {
                 <div onClick={()=>setRole(roles[4].id)} style={{padding:"11px 13px",borderRadius:11,cursor:"pointer",border:`1.5px solid ${role===roles[4].id?roles[4].color+"88":"rgba(150,150,255,.1)"}`,background:role===roles[4].id?`${roles[4].color}12`:"rgba(150,150,255,.04)",transition:"all .2s",display:"flex",alignItems:"center",gap:9}}>
                   <span style={{fontSize:17}}>{roles[4].icon}</span>
                   <div>
-                    <div style={{fontSize:12,fontWeight:600,color:role===roles[4].id?roles[4].color:T.text}}>{roles[4].label}</div>
-                    <div style={{fontSize:10,color:T.text3,marginTop:1}}>{roles[4].sub}</div>
+                    <div style={{fontSize:12,fontWeight:600,color:role===roles[4].id?roles[4].color:T.text}}>{t(roles[4].labelKey)}</div>
+                    <div style={{fontSize:10,color:T.text3,marginTop:1}}>{t(roles[4].subKey)}</div>
                   </div>
                 </div>
               </div>
             </div>
           )}
           <div style={{marginBottom:13}}>
-            <div style={{fontSize:11,color:T.text3,letterSpacing:1.2,textTransform:"uppercase",marginBottom:8}}>Email</div>
-            <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@company.com" style={{width:"100%",background:"rgba(150,150,255,.06)",border:"1px solid rgba(150,150,255,.12)",borderRadius:9,padding:"10px 13px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/>
+              <div style={{fontSize:11,color:T.text3,letterSpacing:1.2,textTransform:"uppercase",marginBottom:8}}>{t("auth.email")}</div>
+            <input type="email" autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@company.com" style={{width:"100%",background:"rgba(150,150,255,.06)",border:"1px solid rgba(150,150,255,.12)",borderRadius:9,padding:"10px 13px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/>
           </div>
           <div style={{marginBottom:18}}>
-            <div style={{fontSize:11,color:T.text3,letterSpacing:1.2,textTransform:"uppercase",marginBottom:8}}>Password</div>
-            <input type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder={mode==="signup"?"Min 6 characters":"••••••••"} style={{width:"100%",background:"rgba(150,150,255,.06)",border:"1px solid rgba(150,150,255,.12)",borderRadius:9,padding:"10px 13px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/>
+              <div style={{fontSize:11,color:T.text3,letterSpacing:1.2,textTransform:"uppercase",marginBottom:8}}>{t("auth.password")}</div>
+            <input type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder={mode==="signup"?t("auth.passMin"):"••••••••"} style={{width:"100%",background:"rgba(150,150,255,.06)",border:"1px solid rgba(150,150,255,.12)",borderRadius:9,padding:"10px 13px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/>
           </div>
           {err&&<div style={{background:"rgba(244,63,94,.1)",border:"1px solid rgba(244,63,94,.22)",borderRadius:8,padding:"8px 12px",fontSize:12,color:"#f87171",marginBottom:14}}>⚠ {err}</div>}
           {mode==="signup"?(<button onClick={handleSignUp} style={{width:"100%",padding:"11px",borderRadius:11,fontSize:14,fontWeight:600,cursor:"pointer",border:"none",fontFamily:"'DM Sans',sans-serif",background:THEMES[role]?.accent||"#3b82f6",color:"#fff",transition:"all .3s",boxShadow:`0 0 24px ${THEMES[role]?.accent||"#3b82f6"}44`}}>
-            {loading?"Creating account…":"Create Account →"}
+            {loading?t("auth.creating"):t("auth.createAccount")}
           </button>):(<button onClick={handleLogin} style={{width:"100%",padding:"11px",borderRadius:11,fontSize:14,fontWeight:600,cursor:"pointer",border:"none",fontFamily:"'DM Sans',sans-serif",background:"#3b82f6",color:"#fff",transition:"all .3s",boxShadow:"0 0 24px #3b82f644"}}>
-            {loading?"Signing in…":"Sign In →"}
+            {loading?t("auth.signingIn"):t("auth.signIn")}
           </button>)}
-          {mode==="signup"&&<div style={{textAlign:"center",marginTop:14,fontSize:12,color:T.text3}}>Already have an account? <button onClick={()=>{setMode("login");setErr("");}} style={{background:"none",border:"none",color:"#60a5fa",cursor:"pointer",fontWeight:600,fontSize:12}}>Sign In</button></div>}
-          {mode==="login"&&<div style={{textAlign:"center",marginTop:14,fontSize:12,color:T.text3}}>New user? <button onClick={()=>{setMode("signup");setErr("");}} style={{background:"none",border:"none",color:"#60a5fa",cursor:"pointer",fontWeight:600,fontSize:12}}>Sign Up</button></div>}
+          {mode==="signup"&&<div style={{textAlign:"center",marginTop:14,fontSize:12,color:T.text3}}>{t("auth.alreadyAccount")} <button onClick={()=>{setMode("login");setErr("");}} style={{background:"none",border:"none",color:"#60a5fa",cursor:"pointer",fontWeight:600,fontSize:12}}>{t("auth.logIn")}</button></div>}
+          {mode==="login"&&<div style={{textAlign:"center",marginTop:14,fontSize:12,color:T.text3}}>{t("auth.newUser")} <button onClick={()=>{setMode("signup");setErr("");}} style={{background:"none",border:"none",color:"#60a5fa",cursor:"pointer",fontWeight:600,fontSize:12}}>{t("auth.signUp")}</button></div>}
         </div>
       </div>
     </div>
   );
 }
 
-function CustomerPortal({ auth, onLogout }) {
+function CustomerPortal({ auth, onLogout, lang, setLang }) {
   const T=THEMES.customer;
+  const t = useMemo(() => createT(lang), [lang]);
   const userName = auth?.user?.fullName || "Customer";
   const [nav,setNav]=useState("home");
-  const [chatMsgs,setChatMsgs]=useState([{role:"ai",text:"👋 Hi! How can I help with your insurance today?"}]);
+  const [chatMsgs,setChatMsgs]=useState([{role:"ai",text:""}]);
   const [chatInput,setChatInput]=useState("");
   const [myPolicies,setMyPolicies]=useState([]);
   const [myClaims,setMyClaims]=useState([]);
@@ -333,6 +378,7 @@ function CustomerPortal({ auth, onLogout }) {
   const applyFormRef=useRef({});
   const claimFormRef=useRef({});
   const chatRef=useRef(null);
+  useEffect(()=>{ setChatMsgs([{role:"ai",text:t("customer.chat.welcome")}]); },[lang,t]);
   useEffect(()=>chatRef.current?.scrollIntoView({behavior:"smooth"}),[chatMsgs]);
   useEffect(()=>{
     (async()=>{
@@ -358,7 +404,7 @@ function CustomerPortal({ auth, onLogout }) {
   async function handleApplyPolicy(){
     const f=applyFormRef.current;
     const holderName=f?.holderName?.value?.trim(), policyType=f?.policyType?.value;
-    if(!holderName||!policyType) return setErr("Fill required fields (Name, Policy Type)");
+    if(!holderName||!policyType) return setErr(t("customer.err.fillNamePolicyType"));
     setSubmitting(true); setErr("");
     try {
       await api.createPolicy({
@@ -377,12 +423,12 @@ function CustomerPortal({ auth, onLogout }) {
   async function handleFileClaim(){
     const f=claimFormRef.current;
     const sel=f?.policySelect?.value;
-    if(!sel) return setErr("Select a policy");
+    if(!sel) return setErr(t("customer.err.selectPolicy"));
     const [policyId,policyNumber]=sel.split("|");
     const holderId=auth?.user?.id||"";
     const holderName=auth?.user?.fullName||userName||"";
     const claimType=f?.claimType?.value, incidentDate=f?.incidentDate?.value, claimedAmount=f?.claimedAmount?.value;
-    if(!policyId||!policyNumber||!holderName||!claimType||!incidentDate||!claimedAmount) return setErr("Fill all required fields");
+    if(!policyId||!policyNumber||!holderName||!claimType||!incidentDate||!claimedAmount) return setErr(t("customer.err.fillClaimFields"));
     setSubmitting(true); setErr("");
     try {
       const fd=new FormData();
@@ -412,12 +458,12 @@ function CustomerPortal({ auth, onLogout }) {
       <div>
         <div style={{background:`linear-gradient(135deg,${T.surface},rgba(16,185,129,.07))`,border:"1px solid rgba(16,185,129,.14)",borderRadius:20,padding:"26px 30px",marginBottom:26,position:"relative",overflow:"hidden"}}>
           <div style={{position:"absolute",top:-30,right:-30,width:160,height:160,borderRadius:"50%",background:"rgba(16,185,129,.05)",filter:"blur(40px)"}}/>
-          <div style={{fontSize:13,color:T.accent2,marginBottom:6}}>Good morning,</div>
+          <div style={{fontSize:13,color:T.accent2,marginBottom:6}}>{t("customer.greeting")}</div>
           <div style={{fontFamily:"Syne",fontSize:24,fontWeight:800,color:T.text,marginBottom:5}}>{userName} 👋</div>
-          <div style={{fontSize:13,color:T.text2}}>Customer ID: {auth?.user?.id?.slice(0,8)||"—"} · Member since {auth?.user?.createdAt?new Date(auth.user.createdAt).toLocaleDateString("en-IN",{month:"short",year:"numeric"}):"—"}</div>
+          <div style={{fontSize:13,color:T.text2}}>{t("customer.customerId")} {auth?.user?.id?.slice(0,8)||"—"} · {t("customer.memberSince")} {auth?.user?.createdAt?new Date(auth.user.createdAt).toLocaleDateString("en-IN",{month:"short",year:"numeric"}):"—"}</div>
           <div style={{display:"flex",gap:14,marginTop:18}}>
-            {[[String(policiesForUi.length),"Active Policies",T.accent],[String(claimsForUi.filter(c=>!["APPROVED","REJECTED","SETTLED"].includes(c.status)).length),"Open Claims","#f59e0b"],[`₹${policiesForUi.reduce((s,p)=>s+(Number(p.premiumAmount)||0),0).toLocaleString("en-IN")}`,"Annual Premium",T.text2]].map(([v,l,c])=>(
-              <div key={l} style={{background:"rgba(16,185,129,.08)",border:"1px solid rgba(16,185,129,.15)",borderRadius:11,padding:"11px 18px",textAlign:"center"}}>
+            {[[String(policiesForUi.length),t("customer.stat.activePolicies"),T.accent],[String(claimsForUi.filter(c=>!["APPROVED","REJECTED","SETTLED"].includes(c.status)).length),t("customer.stat.openClaims"),"#f59e0b"],[`₹${policiesForUi.reduce((s,p)=>s+(Number(p.premiumAmount)||0),0).toLocaleString("en-IN")}`,t("customer.stat.annualPremium"),T.text2]].map(([v,l,c],i)=>(
+              <div key={i} style={{background:"rgba(16,185,129,.08)",border:"1px solid rgba(16,185,129,.15)",borderRadius:11,padding:"11px 18px",textAlign:"center"}}>
                 <div style={{fontFamily:"Syne",fontSize:18,fontWeight:700,color:c}}>{v}</div>
                 <div style={{fontSize:11,color:T.text2,marginTop:2}}>{l}</div>
               </div>
@@ -426,21 +472,21 @@ function CustomerPortal({ auth, onLogout }) {
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
           <Card T={T}>
-            <CardHdr title="My Policies" sub="Quick overview" T={T} action={<button onClick={()=>setNav("policies")} style={{background:"none",border:"none",color:T.accent2,fontSize:12,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>View all →</button>}/>
+            <CardHdr title={t("customer.card.myPolicies")} sub={t("customer.card.quickOverview")} T={T} action={<button onClick={()=>setNav("policies")} style={{background:"none",border:"none",color:T.accent2,fontSize:12,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>{t("common.viewAll")}</button>}/>
             <div style={{padding:"12px 16px",display:"flex",flexDirection:"column",gap:8}}>
               {policiesForUi.map(p=>(
                 <div key={p.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",background:"rgba(16,185,129,.05)",borderRadius:9,border:"1px solid rgba(16,185,129,.09)"}}>
                   <div>
                     <div style={{fontSize:12,fontWeight:600,color:T.text}}>{p.type}</div>
-                    <div style={{fontSize:11,color:T.text3,marginTop:1}}>{p.id} · Exp {p.expiry}</div>
+                    <div style={{fontSize:11,color:T.text3,marginTop:1}}>{p.id} · {t("customer.expPrefix")} {p.expiry}</div>
                   </div>
-                  <Chip color="green" T={T}>Active</Chip>
+                  <Chip color="green" T={T}>{t("customer.status.active")}</Chip>
                 </div>
               ))}
             </div>
           </Card>
           <Card T={T}>
-            <CardHdr title="AI Assistant" sub="Ask about your policies" T={T}/>
+            <CardHdr title={t("customer.card.aiAssistant")} sub={t("customer.card.askPolicies")} T={T}/>
             <div style={{height:196,overflowY:"auto",padding:"10px 14px",display:"flex",flexDirection:"column",gap:8}}>
               {chatMsgs.map((m,i)=>(
                 <div key={i} style={{maxWidth:"88%",padding:"8px 12px",borderRadius:11,fontSize:12.5,lineHeight:1.5,alignSelf:m.role==="user"?"flex-end":"flex-start",background:m.role==="user"?"rgba(16,185,129,.18)":"rgba(16,185,129,.07)",border:`1px solid ${m.role==="user"?"rgba(16,185,129,.3)":"rgba(16,185,129,.12)"}`,color:T.text}}>{m.text}</div>
@@ -448,155 +494,155 @@ function CustomerPortal({ auth, onLogout }) {
               <div ref={chatRef}/>
             </div>
             <div style={{display:"flex",gap:8,padding:"10px 13px",borderTop:"1px solid rgba(16,185,129,.08)"}}>
-              <input value={chatInput} onChange={e=>setChatInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendChat()} placeholder="Ask about your policy…" style={{flex:1,background:"rgba(16,185,129,.06)",border:"1px solid rgba(16,185,129,.12)",borderRadius:8,padding:"7px 10px",color:T.text,fontSize:12,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/>
+              <input value={chatInput} onChange={e=>setChatInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendChat()} placeholder={t("customer.chat.placeholderShort")} style={{flex:1,background:"rgba(16,185,129,.06)",border:"1px solid rgba(16,185,129,.12)",borderRadius:8,padding:"7px 10px",color:T.text,fontSize:12,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/>
               <Btn T={T} onClick={sendChat} style={{padding:"7px 13px",fontSize:12}}>➤</Btn>
             </div>
           </Card>
         </div>
       </div>
     ),
-    policies:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:6,color:T.text}}>My Policies</div><div style={{fontSize:13,color:T.text2,marginBottom:22}}>All your active insurance policies</div>
+    policies:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:6,color:T.text}}>{t("customer.policiesPage.title")}</div><div style={{fontSize:13,color:T.text2,marginBottom:22}}>{t("customer.policiesPage.subtitle")}</div>
       <div style={{display:"flex",flexDirection:"column",gap:14}}>{policiesForUi.map(p=>(
         <Card key={p.id} T={T}><div style={{padding:"20px 24px"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
             <div><div style={{fontFamily:"Syne",fontSize:15,fontWeight:700,color:T.text,marginBottom:3}}>{p.type}</div><div style={{fontSize:11,color:T.text3,fontFamily:"monospace"}}>{p.id}</div></div>
-            <Chip color="green" T={T}>Active</Chip>
+            <Chip color="green" T={T}>{t("customer.status.active")}</Chip>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
-            {[["Premium",p.premium],["Expiry",p.expiry],["Coverage",p.coverageAmount?`₹${Number(p.coverageAmount).toLocaleString("en-IN")}`:"—"]].map(([l,v])=>(
-              <div key={l} style={{background:"rgba(16,185,129,.05)",borderRadius:8,padding:"10px 12px",border:"1px solid rgba(16,185,129,.09)"}}>
+            {[[t("customer.label.premium"),p.premium],[t("customer.label.expiry"),p.expiry],[t("customer.label.coverage"),p.coverageAmount?`₹${Number(p.coverageAmount).toLocaleString("en-IN")}`:"—"]].map(([l,v],i)=>(
+              <div key={i} style={{background:"rgba(16,185,129,.05)",borderRadius:8,padding:"10px 12px",border:"1px solid rgba(16,185,129,.09)"}}>
                 <div style={{fontSize:10,color:T.text3,marginBottom:4}}>{l}</div>
                 <div style={{fontSize:13,color:T.text}}>{v}</div>
               </div>
             ))}
             <div style={{background:"rgba(16,185,129,.05)",borderRadius:8,padding:"10px 12px",border:"1px solid rgba(16,185,129,.09)"}}>
-              <div style={{fontSize:10,color:T.text3,marginBottom:6}}>Risk Score</div>
+              <div style={{fontSize:10,color:T.text3,marginBottom:6}}>{t("customer.label.riskScore")}</div>
               <ScoreBar value={p.risk} T={T}/>
             </div>
           </div>
           <div style={{display:"flex",gap:8}}>
-            <Btn T={T} style={{padding:"7px 14px",fontSize:12}} onClick={()=>setNav("fileclaim")}>📁 File Claim</Btn>
-            <Btn T={T} variant="ghost" style={{padding:"7px 14px",fontSize:12}} onClick={()=>setNav("renewals")}>🔁 Renew</Btn>
+            <Btn T={T} style={{padding:"7px 14px",fontSize:12}} onClick={()=>setNav("fileclaim")}>📁 {t("customer.btn.fileClaim")}</Btn>
+            <Btn T={T} variant="ghost" style={{padding:"7px 14px",fontSize:12}} onClick={()=>setNav("renewals")}>🔁 {t("customer.btn.renew")}</Btn>
           </div>
         </div></Card>
       ))}</div>
     </div>),
-    claims:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:6,color:T.text}}>My Claims</div><div style={{fontSize:13,color:T.text2,marginBottom:22}}>Track all your filed claims</div>
+    claims:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:6,color:T.text}}>{t("customer.claimsPage.title")}</div><div style={{fontSize:13,color:T.text2,marginBottom:22}}>{t("customer.claimsPage.subtitle")}</div>
       <Card T={T}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Claim ID</TH><TH>Policy</TH><TH>Type</TH><TH>Amount</TH><TH>Filed</TH><TH>Status</TH><TH></TH></tr></thead>
-        <tbody>{claimsForUi.map(c=>(<TR key={c.uid}><TD mono accent={T.accent2}>{c.id}</TD><TD>{c.policy}</TD><TD>{c.type}</TD><TD>{c.amount}</TD><TD>{c.filed}</TD><TD><Chip color={c.sc} T={T}>{c.status}</Chip></TD><TD><Btn T={T} variant="ghost" style={{padding:"5px 10px",fontSize:11}}>Track</Btn></TD></TR>))}</tbody>
+        <thead><tr><TH>{t("customer.th.claimId")}</TH><TH>{t("customer.th.policy")}</TH><TH>{t("customer.th.type")}</TH><TH>{t("customer.th.amount")}</TH><TH>{t("customer.th.filed")}</TH><TH>{t("customer.th.status")}</TH><TH></TH></tr></thead>
+        <tbody>{claimsForUi.map(c=>(<TR key={c.uid}><TD mono accent={T.accent2}>{c.id}</TD><TD>{c.policy}</TD><TD>{c.type}</TD><TD>{c.amount}</TD><TD>{c.filed}</TD><TD><Chip color={c.sc} T={T}>{c.status}</Chip></TD><TD><Btn T={T} variant="ghost" style={{padding:"5px 10px",fontSize:11}}>{t("customer.btn.track")}</Btn></TD></TR>))}</tbody>
       </table></Card>
     </div>),
-    apply:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:6,color:T.text}}>Apply for New Policy</div><div style={{fontSize:13,color:T.text2,marginBottom:22}}>AI will score your risk automatically</div>
+    apply:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:6,color:T.text}}>{t("customer.apply.title")}</div><div style={{fontSize:13,color:T.text2,marginBottom:22}}>{t("customer.apply.subtitle")}</div>
       {err&&<div style={{padding:10,marginBottom:14,background:"rgba(239,68,68,.1)",borderRadius:9,color:"#ef4444",fontSize:13}}>{err}</div>}
       <Card T={T}><div style={{padding:"22px 26px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-        <div><div style={{fontSize:11,color:T.text3,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Full Name</div>
-          <input ref={el=>{if(el)applyFormRef.current.holderName=el}} defaultValue={userName} placeholder="Your full name" style={{width:"100%",background:"rgba(16,185,129,.06)",border:"1px solid rgba(16,185,129,.12)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/></div>
-        <div><div style={{fontSize:11,color:T.text3,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Date of Birth</div>
+        <div><div style={{fontSize:11,color:T.text3,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>{t("customer.apply.fullName")}</div>
+          <input ref={el=>{if(el)applyFormRef.current.holderName=el}} defaultValue={userName} placeholder={t("customer.apply.placeholder.name")} style={{width:"100%",background:"rgba(16,185,129,.06)",border:"1px solid rgba(16,185,129,.12)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/></div>
+        <div><div style={{fontSize:11,color:T.text3,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>{t("customer.apply.dob")}</div>
           <input ref={el=>{if(el)applyFormRef.current.dob=el}} type="date" style={{width:"100%",background:"rgba(16,185,129,.06)",border:"1px solid rgba(16,185,129,.12)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/></div>
-        <div><div style={{fontSize:11,color:T.text3,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Annual Income</div>
-          <input ref={el=>{if(el)applyFormRef.current.income=el}} placeholder="₹ e.g. 1800000" style={{width:"100%",background:"rgba(16,185,129,.06)",border:"1px solid rgba(16,185,129,.12)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/></div>
-        <div><div style={{fontSize:11,color:T.text3,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Occupation</div>
-          <input ref={el=>{if(el)applyFormRef.current.occupation=el}} placeholder="e.g. Software Engineer" style={{width:"100%",background:"rgba(16,185,129,.06)",border:"1px solid rgba(16,185,129,.12)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/></div>
-        <div><div style={{fontSize:11,color:T.text3,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Policy Type</div>
+        <div><div style={{fontSize:11,color:T.text3,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>{t("customer.apply.income")}</div>
+          <input ref={el=>{if(el)applyFormRef.current.income=el}} placeholder={t("customer.apply.placeholder.income")} style={{width:"100%",background:"rgba(16,185,129,.06)",border:"1px solid rgba(16,185,129,.12)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/></div>
+        <div><div style={{fontSize:11,color:T.text3,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>{t("customer.apply.occupation")}</div>
+          <input ref={el=>{if(el)applyFormRef.current.occupation=el}} placeholder={t("customer.apply.placeholder.occupation")} style={{width:"100%",background:"rgba(16,185,129,.06)",border:"1px solid rgba(16,185,129,.12)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/></div>
+        <div><div style={{fontSize:11,color:T.text3,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>{t("customer.apply.policyType")}</div>
           <select ref={el=>{if(el)applyFormRef.current.policyType=el}} style={{width:"100%",background:"rgba(16,185,129,.06)",border:"1px solid rgba(16,185,129,.12)",borderRadius:8,padding:"9px 12px",color:"#e5fdf4",fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif",appearance:"none",WebkitAppearance:"none",MozAppearance:"none"}}>
-            <option value="CORPORATE_HEALTH" style={{color:"#0f172a"}}>Corporate Health</option>
-            <option value="TERM_LIFE" style={{color:"#0f172a"}}>Term Life</option>
-            <option value="VEHICLE" style={{color:"#0f172a"}}>Vehicle</option>
-            <option value="HOME" style={{color:"#0f172a"}}>Home</option>
+            <option value="CORPORATE_HEALTH" style={{color:"#0f172a"}}>{t("customer.policy.corporateHealth")}</option>
+            <option value="TERM_LIFE" style={{color:"#0f172a"}}>{t("customer.policy.termLife")}</option>
+            <option value="VEHICLE" style={{color:"#0f172a"}}>{t("customer.policy.vehicle")}</option>
+            <option value="HOME" style={{color:"#0f172a"}}>{t("customer.policy.home")}</option>
           </select></div>
-        <div><div style={{fontSize:11,color:T.text3,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Coverage Amount</div>
-          <input ref={el=>{if(el)applyFormRef.current.coverageAmount=el}} defaultValue="5000000" placeholder="₹ e.g. 5000000" style={{width:"100%",background:"rgba(16,185,129,.06)",border:"1px solid rgba(16,185,129,.12)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/></div>
-        <div style={{gridColumn:"1/-1"}}><div style={{fontSize:11,color:T.text3,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Start / End Date</div>
+        <div><div style={{fontSize:11,color:T.text3,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>{t("customer.apply.coverageAmount")}</div>
+          <input ref={el=>{if(el)applyFormRef.current.coverageAmount=el}} defaultValue="5000000" placeholder={t("customer.apply.placeholder.coverage")} style={{width:"100%",background:"rgba(16,185,129,.06)",border:"1px solid rgba(16,185,129,.12)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/></div>
+        <div style={{gridColumn:"1/-1"}}><div style={{fontSize:11,color:T.text3,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>{t("customer.apply.startEndDate")}</div>
           <div style={{display:"flex",gap:12}}>
             <input ref={el=>{if(el)applyFormRef.current.startDate=el}} type="date" defaultValue={new Date().toISOString().slice(0,10)} style={{flex:1,background:"rgba(16,185,129,.06)",border:"1px solid rgba(16,185,129,.12)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/>
             <input ref={el=>{if(el)applyFormRef.current.endDate=el}} type="date" defaultValue={new Date(Date.now()+365*24*60*60*1000).toISOString().slice(0,10)} style={{flex:1,background:"rgba(16,185,129,.06)",border:"1px solid rgba(16,185,129,.12)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/>
           </div></div>
         <div style={{gridColumn:"1/-1",background:"rgba(16,185,129,.08)",border:"1px solid rgba(16,185,129,.16)",borderRadius:11,padding:"13px 16px",display:"flex",alignItems:"center",gap:12}}>
           <div style={{fontSize:22}}>🤖</div>
-          <div><div style={{fontSize:13,fontWeight:500,color:T.text}}>AI Risk Score: <span style={{color:T.accent,fontFamily:"Syne",fontSize:17,fontWeight:700}}>—</span> / 100</div>
-          <div style={{fontSize:12,color:T.text2,marginTop:2}}>Risk evaluated after submission</div></div>
+          <div><div style={{fontSize:13,fontWeight:500,color:T.text}}>{t("customer.apply.aiRisk")} <span style={{color:T.accent,fontFamily:"Syne",fontSize:17,fontWeight:700}}>—</span> {t("customer.apply.scoreOutOf")}</div>
+          <div style={{fontSize:12,color:T.text2,marginTop:2}}>{t("customer.apply.aiHint")}</div></div>
         </div>
-        <div style={{gridColumn:"1/-1",display:"flex",gap:10}}><Btn T={T} onClick={handleApplyPolicy} disabled={submitting}>{submitting?"Submitting…":"Submit Application"}</Btn><Btn T={T} variant="ghost" onClick={()=>setNav("policies")}>Cancel</Btn></div>
+        <div style={{gridColumn:"1/-1",display:"flex",gap:10}}><Btn T={T} onClick={handleApplyPolicy} disabled={submitting}>{submitting?t("common.submitting"):t("customer.apply.submit")}</Btn><Btn T={T} variant="ghost" onClick={()=>setNav("policies")}>{t("common.cancel")}</Btn></div>
       </div></Card>
     </div>),
-    fileclaim:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:6,color:T.text}}>File a Claim</div><div style={{fontSize:13,color:T.text2,marginBottom:22}}>AI fraud detection runs automatically</div>
+    fileclaim:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:6,color:T.text}}>{t("customer.fileclaim.title")}</div><div style={{fontSize:13,color:T.text2,marginBottom:22}}>{t("customer.fileclaim.subtitle")}</div>
       {err&&<div style={{padding:10,marginBottom:14,background:"rgba(239,68,68,.1)",borderRadius:9,color:"#ef4444",fontSize:13}}>{err}</div>}
       <Card T={T}><div style={{padding:"22px 26px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-        <div><div style={{fontSize:11,color:T.text3,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Select Policy</div>
+        <div><div style={{fontSize:11,color:T.text3,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>{t("customer.fileclaim.selectPolicy")}</div>
           <select ref={el=>{if(el)claimFormRef.current.policySelect=el}} style={{width:"100%",background:"rgba(16,185,129,.06)",border:"1px solid rgba(16,185,129,.12)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}>
-            <option value="" style={{color:"#0f172a"}}>— Select policy —</option>
+            <option value="" style={{color:"#0f172a"}}>{t("customer.fileclaim.selectPlaceholder")}</option>
             {policiesForUi.map(p=><option key={p.uid} value={`${p.uid}|${p.id}`} style={{color:"#0f172a"}}>{p.id} · {p.type}</option>)}
           </select></div>
-        <div><div style={{fontSize:11,color:T.text3,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Claim Type</div>
+        <div><div style={{fontSize:11,color:T.text3,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>{t("customer.fileclaim.claimType")}</div>
           <select ref={el=>{if(el)claimFormRef.current.claimType=el}} style={{width:"100%",background:"rgba(16,185,129,.06)",border:"1px solid rgba(16,185,129,.12)",borderRadius:8,padding:"9px 12px",color:"#e5fdf4",fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif",appearance:"none",WebkitAppearance:"none",MozAppearance:"none"}}>
-            <option value="MEDICAL_EXPENSE" style={{color:"#0f172a"}}>Medical Expense</option>
-            <option value="HOSPITALIZATION" style={{color:"#0f172a"}}>Hospitalization</option>
-            <option value="ACCIDENT" style={{color:"#0f172a"}}>Accident</option>
-            <option value="THEFT" style={{color:"#0f172a"}}>Theft</option>
-            <option value="DAMAGE" style={{color:"#0f172a"}}>Damage</option>
+            <option value="MEDICAL_EXPENSE" style={{color:"#0f172a"}}>{t("customer.claimType.medical")}</option>
+            <option value="HOSPITALIZATION" style={{color:"#0f172a"}}>{t("customer.claimType.hospitalization")}</option>
+            <option value="ACCIDENT" style={{color:"#0f172a"}}>{t("customer.claimType.accident")}</option>
+            <option value="THEFT" style={{color:"#0f172a"}}>{t("customer.claimType.theft")}</option>
+            <option value="DAMAGE" style={{color:"#0f172a"}}>{t("customer.claimType.damage")}</option>
           </select></div>
-        <div><div style={{fontSize:11,color:T.text3,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Incident Date</div>
+        <div><div style={{fontSize:11,color:T.text3,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>{t("customer.fileclaim.incidentDate")}</div>
           <input ref={el=>{if(el)claimFormRef.current.incidentDate=el}} type="date" style={{width:"100%",background:"rgba(16,185,129,.06)",border:"1px solid rgba(16,185,129,.12)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/></div>
-        <div><div style={{fontSize:11,color:T.text3,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Claim Amount</div>
-          <input ref={el=>{if(el)claimFormRef.current.claimedAmount=el}} type="number" placeholder="₹ Enter amount" style={{width:"100%",background:"rgba(16,185,129,.06)",border:"1px solid rgba(16,185,129,.12)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/></div>
-        <div style={{gridColumn:"1/-1"}}><div style={{fontSize:11,color:T.text3,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Description</div>
-          <textarea ref={el=>{if(el)claimFormRef.current.description=el}} rows={3} placeholder="Describe the incident…" style={{width:"100%",background:"rgba(16,185,129,.06)",border:"1px solid rgba(16,185,129,.12)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif",resize:"vertical"}}/></div>
+        <div><div style={{fontSize:11,color:T.text3,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>{t("customer.fileclaim.claimAmount")}</div>
+          <input ref={el=>{if(el)claimFormRef.current.claimedAmount=el}} type="number" placeholder={t("customer.fileclaim.placeholder.amount")} style={{width:"100%",background:"rgba(16,185,129,.06)",border:"1px solid rgba(16,185,129,.12)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/></div>
+        <div style={{gridColumn:"1/-1"}}><div style={{fontSize:11,color:T.text3,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>{t("customer.fileclaim.description")}</div>
+          <textarea ref={el=>{if(el)claimFormRef.current.description=el}} rows={3} placeholder={t("customer.fileclaim.placeholder.desc")} style={{width:"100%",background:"rgba(16,185,129,.06)",border:"1px solid rgba(16,185,129,.12)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif",resize:"vertical"}}/></div>
         <div style={{gridColumn:"1/-1"}}>
-          <div style={{fontSize:11,color:T.text3,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Documents</div>
+          <div style={{fontSize:11,color:T.text3,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>{t("customer.fileclaim.documents")}</div>
           <input ref={el=>{if(el)claimFormRef.current.fileInput=el}} type="file" multiple accept=".pdf,.jpg,.jpeg,.png" style={{display:"none"}}/>
           <div onClick={()=>claimFormRef.current?.fileInput?.click()} style={{border:"2px dashed rgba(16,185,129,.2)",borderRadius:11,padding:22,textAlign:"center",cursor:"pointer"}}>
-            <div style={{fontSize:26,marginBottom:5}}>📎</div><div style={{fontSize:13,color:T.text2}}>Upload documents (click to select)</div><div style={{fontSize:11,color:T.text3,marginTop:3}}>PDF, JPG, PNG up to 10MB</div>
+            <div style={{fontSize:26,marginBottom:5}}>📎</div><div style={{fontSize:13,color:T.text2}}>{t("customer.fileclaim.uploadHint")}</div><div style={{fontSize:11,color:T.text3,marginTop:3}}>{t("customer.fileclaim.uploadSub")}</div>
           </div>
         </div>
-        <div style={{gridColumn:"1/-1"}}><Btn T={T} onClick={handleFileClaim} disabled={submitting}>{submitting?"Submitting…":"Submit Claim"}</Btn></div>
+        <div style={{gridColumn:"1/-1"}}><Btn T={T} onClick={handleFileClaim} disabled={submitting}>{submitting?t("common.submitting"):t("customer.fileclaim.submit")}</Btn></div>
       </div></Card>
     </div>),
-    renewals:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>Renewals</div>
+    renewals:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>{t("portal.customer.renewals")}</div>
       {err&&<div style={{padding:10,marginBottom:14,background:"rgba(239,68,68,.1)",borderRadius:9,color:"#ef4444",fontSize:13}}>{err}</div>}
       <Card T={T}><div style={{padding:"16px 20px",display:"flex",flexDirection:"column",gap:12}}>
-        {renewals.length===0?<div style={{padding:20,textAlign:"center",color:T.text2,fontSize:13}}>No renewals due at the moment.</div>:renewals.filter(r=>["PENDING","NOTIFIED"].includes(r.renewalStatus)).map(r=>{
+        {renewals.length===0?<div style={{padding:20,textAlign:"center",color:T.text2,fontSize:13}}>{t("customer.renewals.empty")}</div>:renewals.filter(r=>["PENDING","NOTIFIED"].includes(r.renewalStatus)).map(r=>{
           const exp=r.expiryDate?new Date(r.expiryDate):null;
           const daysLeft=exp?Math.ceil((exp-new Date())/864e5):0;
           return (
             <div key={r.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px",background:"rgba(245,158,11,.07)",borderRadius:11,border:"1px solid rgba(245,158,11,.18)"}}>
-              <div><div style={{fontSize:13,fontWeight:600,color:T.text}}>{r.policyNumber||"Policy"}</div><div style={{fontSize:11,color:T.text3,marginTop:2}}>Expires {exp?exp.toLocaleDateString("en-IN"):"—"} · {daysLeft>0?`${daysLeft} days remaining`:"Expired"}</div></div>
-              <Btn T={T} style={{padding:"7px 14px",fontSize:12}} disabled={submitting} onClick={async()=>{try{const full=await api.getRenewal(r.id); const q=full?.quotes?.[0]; if(!q) return setErr("No quotes available"); await handleRenewNow(r.id,q.id);}catch(e){setErr(e.message);}}}>Renew Now</Btn>
+              <div><div style={{fontSize:13,fontWeight:600,color:T.text}}>{r.policyNumber||t("customer.fallback.policy")}</div><div style={{fontSize:11,color:T.text3,marginTop:2}}>{t("customer.renewals.expires")} {exp?exp.toLocaleDateString("en-IN"):"—"} · {daysLeft>0?`${daysLeft} ${t("customer.renewals.daysRemaining")}`:t("customer.renewals.expired")}</div></div>
+              <Btn T={T} style={{padding:"7px 14px",fontSize:12}} disabled={submitting} onClick={async()=>{try{const full=await api.getRenewal(r.id); const q=full?.quotes?.[0]; if(!q) return setErr(t("customer.err.noQuotes")); await handleRenewNow(r.id,q.id);}catch(e){setErr(e.message);}}}>{t("customer.renewals.renewNow")}</Btn>
             </div>
           );
         })}
       </div></Card>
     </div>),
-    assistant:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>AI Assistant</div>
+    assistant:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>{t("portal.customer.assistant")}</div>
       <Card T={T}><div style={{height:380,overflowY:"auto",padding:"14px 16px",display:"flex",flexDirection:"column",gap:9}}>
         {chatMsgs.map((m,i)=><div key={i} style={{maxWidth:"85%",padding:"9px 13px",borderRadius:11,fontSize:13,lineHeight:1.5,alignSelf:m.role==="user"?"flex-end":"flex-start",background:m.role==="user"?"rgba(16,185,129,.16)":"rgba(16,185,129,.06)",border:`1px solid ${m.role==="user"?"rgba(16,185,129,.28)":"rgba(16,185,129,.1)"}`,color:T.text}}>{m.text}</div>)}
         <div ref={chatRef}/>
       </div>
       <div style={{display:"flex",gap:8,padding:"11px 15px",borderTop:"1px solid rgba(16,185,129,.08)"}}>
-        <input value={chatInput} onChange={e=>setChatInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendChat()} placeholder="Ask about your policies…" style={{flex:1,background:"rgba(16,185,129,.06)",border:"1px solid rgba(16,185,129,.12)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/>
-        <Btn T={T} onClick={sendChat}>Send ➤</Btn>
+        <input value={chatInput} onChange={e=>setChatInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendChat()} placeholder={t("customer.assistant.placeholder")} style={{flex:1,background:"rgba(16,185,129,.06)",border:"1px solid rgba(16,185,129,.12)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/>
+        <Btn T={T} onClick={sendChat}>{t("common.send")} ➤</Btn>
       </div></Card>
     </div>),
-    documents:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>My Documents</div>
+    documents:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>{t("customer.documentsPage.title")}</div>
       <Card T={T}><div style={{padding:"14px 18px",display:"flex",flexDirection:"column",gap:8}}>
         {[["Policy_POL-2025-0303.pdf","Family Health Policy","1.2 MB","12 Jan 2025"],["Claim_CLM-0044_Approved.pdf","Approved Claim Receipt","0.4 MB","15 Feb 2025"],["RenewalNotice_2025.pdf","Renewal Reminder","0.2 MB","01 Mar 2025"]].map(([f,d,s,dt])=>(
           <div key={f} style={{display:"flex",alignItems:"center",gap:11,padding:"11px 13px",background:"rgba(16,185,129,.05)",borderRadius:9,border:"1px solid rgba(16,185,129,.09)"}}>
             <span style={{fontSize:20}}>📄</span>
             <div style={{flex:1}}><div style={{fontSize:13,fontWeight:500,color:T.text}}>{f}</div><div style={{fontSize:11,color:T.text3,marginTop:1}}>{d} · {s} · {dt}</div></div>
-            <Btn T={T} variant="ghost" style={{padding:"5px 10px",fontSize:11}}>⬇ Download</Btn>
+            <Btn T={T} variant="ghost" style={{padding:"5px 10px",fontSize:11}}>⬇ {t("common.download")}</Btn>
           </div>
         ))}
       </div></Card>
     </div>),
   };
-  const TITLES={home:"My Dashboard",policies:"My Policies",apply:"Apply for Policy",claims:"My Claims",fileclaim:"File a Claim",renewals:"Renewals",assistant:"AI Assistant",documents:"My Documents"};
+  const TITLES={home:t("portal.customer.home"),policies:t("portal.customer.policies"),apply:t("portal.customer.apply"),claims:t("portal.customer.claims"),fileclaim:t("portal.customer.fileclaim"),renewals:t("portal.customer.renewals"),assistant:t("portal.customer.assistant"),documents:t("portal.customer.documents")};
   return (
     <div style={{display:"flex",minHeight:"100vh",background:T.bg}}>
       <div style={{position:"fixed",top:"-20%",left:"-10%",width:"60%",height:"60%",background:"radial-gradient(ellipse,rgba(16,185,129,.06) 0%,transparent 70%)",pointerEvents:"none",zIndex:0}}/>
-      <Sidebar role="customer" nav={nav} setNav={setNav} T={T} onLogout={onLogout}/>
+      <Sidebar role="customer" nav={nav} setNav={setNav} T={T} onLogout={onLogout} lang={lang} setLang={setLang} t={t}/>
       <div style={{marginLeft:248,flex:1,display:"flex",flexDirection:"column",position:"relative",zIndex:1}}>
-        <Topbar title={TITLES[nav]||nav} sub="Customer Portal · policy-service · claims-service" T={T} userName={userName} roleLabel="Policyholder"/>
-        {loading?<div style={{padding:26,flex:1,display:"flex",alignItems:"center",justifyContent:"center",color:T.text2}}>Loading…</div>:<div style={{padding:26,flex:1}} key={nav}>{pages[nav]||pages.home}</div>}
+        <Topbar title={TITLES[nav]||nav} sub={t("customer.portalSub")} T={T} userName={userName} roleLabel={t("auth.rolePolicyholder")} t={t}/>
+        {loading?<div style={{padding:26,flex:1,display:"flex",alignItems:"center",justifyContent:"center",color:T.text2}}>{t("common.loading")}</div>:<div style={{padding:26,flex:1}} key={nav}>{pages[nav]||pages.home}</div>}
       </div>
     </div>
   );
@@ -615,8 +661,9 @@ const USERS_LIST=[
   {id:"USR-005",name:"Neha Gupta",   email:"neha@insurai.com",   role:"AI Analyst",     status:"Active"},
 ];
 
-function UnderwriterPortal({ auth, onLogout }) {
+function UnderwriterPortal({ auth, onLogout, lang, setLang }) {
   const T=THEMES.underwriter;
+  const t = useMemo(() => createT(lang), [lang]);
   const userName=auth?.user?.fullName||"Underwriter";
   const [nav,setNav]=useState("home");
   const [selected,setSelected]=useState(null);
@@ -888,17 +935,18 @@ function UnderwriterPortal({ auth, onLogout }) {
   return (
     <div style={{display:"flex",minHeight:"100vh",background:T.bg}}>
       <div style={{position:"fixed",top:"-20%",right:"-10%",width:"50%",height:"60%",background:"radial-gradient(ellipse,rgba(99,102,241,.07) 0%,transparent 70%)",pointerEvents:"none",zIndex:0}}/>
-      <Sidebar role="underwriter" nav={nav} setNav={setNav} T={T} onLogout={onLogout}/>
+      <Sidebar role="underwriter" nav={nav} setNav={setNav} T={T} onLogout={onLogout} lang={lang} setLang={setLang} t={t}/>
       <div style={{marginLeft:248,flex:1,display:"flex",flexDirection:"column",position:"relative",zIndex:1}}>
-        <Topbar title={TITLES[nav]||nav} sub="Underwriter Portal · workflow-service · ai-risk-service" T={T} userName={userName} roleLabel="Senior Underwriter"/>
+        <Topbar title={TITLES[nav]||nav} sub={t("underwriter.portalSub")} T={T} userName={userName} roleLabel={t("auth.roleSeniorUnderwriter")} t={t}/>
         <div style={{padding:26,flex:1}} key={nav}>{pages[nav]||pages.home}</div>
       </div>
     </div>
   );
 }
 
-function ClaimsAdjusterPortal({ auth, onLogout }) {
+function ClaimsAdjusterPortal({ auth, onLogout, lang, setLang }) {
   const T=THEMES.claims;
+  const t = useMemo(() => createT(lang), [lang]);
   const userName=auth?.user?.fullName||"Claims Adjuster";
   const [nav,setNav]=useState("home");
   const [claims,setClaims]=useState([]);
@@ -953,7 +1001,7 @@ function ClaimsAdjusterPortal({ auth, onLogout }) {
     setErr("");
     try {
       const target = selectedFraudClaim;
-      if (!target) throw new Error("Claim not found. Enter a valid Claim ID/Number.");
+      if (!target) throw new Error(t("claims.err.invalidClaim"));
       const amount = Number(target?.claimedAmount || 0);
       const req = {
         claim_id: fraudForm.claimId,
@@ -975,7 +1023,7 @@ function ClaimsAdjusterPortal({ auth, onLogout }) {
         anomalies: Array.isArray(result?.anomalies) ? result.anomalies : ["No anomalies"]
       });
     } catch (e) {
-      setErr(e.message || "Fraud analysis failed");
+      setErr(e.message || t("claims.err.fraudFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -983,8 +1031,8 @@ function ClaimsAdjusterPortal({ auth, onLogout }) {
   const pages={
     home:(<div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16,marginBottom:26}}>
-        {[["📂","Open Claims",String(openClaims.length),"awaiting action",T.accent],["🔍","Fraud Alerts",String(openClaims.filter(x=>x.fraud>70).length),"high fraud score","#f43f5e"],["🔎","Investigation",String(openClaims.filter(x=>x.status==="INVESTIGATION").length),"active cases","#f59e0b"],["✅","Approved",String(claimsForUi.filter(x=>["APPROVED","SETTLED"].includes(x.status)).length),"claims closed","#10b981"]].map(([ic,l,v,s,c])=>(
-          <div key={l} className="fadeUp" style={{background:T.surface,border:"1px solid rgba(200,150,100,.08)",borderRadius:16,padding:18,position:"relative",overflow:"hidden"}}>
+        {[["📂",t("claims.kpi.openTitle"),String(openClaims.length),t("claims.kpi.openSub"),T.accent],["🔍",t("claims.kpi.fraudTitle"),String(openClaims.filter(x=>x.fraud>70).length),t("claims.kpi.fraudSub"),"#f43f5e"],["🔎",t("claims.kpi.invTitle"),String(openClaims.filter(x=>x.status==="INVESTIGATION").length),t("claims.kpi.invSub"),"#f59e0b"],["✅",t("claims.kpi.approvedTitle"),String(claimsForUi.filter(x=>["APPROVED","SETTLED"].includes(x.status)).length),t("claims.kpi.approvedSub"),"#10b981"]].map(([ic,l,v,s,c],i)=>(
+          <div key={`kpi-${i}`} className="fadeUp" style={{background:T.surface,border:"1px solid rgba(200,150,100,.08)",borderRadius:16,padding:18,position:"relative",overflow:"hidden"}}>
             <div style={{position:"absolute",top:-20,right:-20,width:80,height:80,borderRadius:"50%",background:c,opacity:.06,filter:"blur(25px)"}}/>
             <div style={{width:36,height:36,borderRadius:9,background:`${c}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,marginBottom:12}}>{ic}</div>
             <div style={{fontFamily:"Syne",fontSize:20,fontWeight:700,color:c}}>{v}</div>
@@ -995,14 +1043,14 @@ function ClaimsAdjusterPortal({ auth, onLogout }) {
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 320px",gap:16}}>
         <Card T={T}>
-          <CardHdr title="Open Claims" sub="claims-service · :8085" T={T} action={<button onClick={()=>setNav("open")} style={{background:"none",border:"none",color:T.accent2,fontSize:12,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>View all →</button>}/>
+          <CardHdr title={t("claims.card.openTitle")} sub={t("claims.card.openSub")} T={T} action={<button onClick={()=>setNav("open")} style={{background:"none",border:"none",color:T.accent2,fontSize:12,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>{t("common.viewAll")}</button>}/>
           <table style={{width:"100%",borderCollapse:"collapse"}}>
-            <thead><tr><TH>Claim ID</TH><TH>Holder</TH><TH>Amount</TH><TH>AI Fraud</TH><TH>Status</TH></tr></thead>
+            <thead><tr><TH>{t("claims.th.claimId")}</TH><TH>{t("claims.th.holder")}</TH><TH>{t("claims.th.amount")}</TH><TH>{t("claims.th.aiFraud")}</TH><TH>{t("claims.th.status")}</TH></tr></thead>
             <tbody>{openClaims.map(c=>(<TR key={c.id} onClick={()=>setSelected(c)} style={{cursor:"pointer"}}><TD mono accent={T.accent2}>{c.cid}</TD><TD>{c.holder}</TD><TD>{c.amount}</TD><TD><span style={{fontWeight:700,color:c.fraud>70?"#f43f5e":c.fraud>50?"#f59e0b":"#10b981"}}>{c.fraud}{c.fraud>70?" ⚠":""}</span></TD><TD><Chip color={c.statusC} T={T}>{c.status}</Chip></TD></TR>))}</tbody>
           </table>
         </Card>
         <Card T={T}>
-          <CardHdr title="🔍 Fraud Alerts" sub="ai-fraud-service · :9002" T={T}/>
+          <CardHdr title={`🔍 ${t("claims.card.fraudTitle")}`} sub={t("claims.card.fraudSub")} T={T}/>
           <div style={{padding:"12px 15px",display:"flex",flexDirection:"column",gap:9}}>
             {openClaims.filter(c=>c.fraud>60).map(c=>(
               <div key={c.id} style={{padding:"11px 13px",background:"rgba(244,63,94,.07)",borderRadius:9,border:"1px solid rgba(244,63,94,.16)"}}>
@@ -1011,118 +1059,118 @@ function ClaimsAdjusterPortal({ auth, onLogout }) {
                   <span style={{fontFamily:"Syne",fontSize:16,fontWeight:700,color:"#f43f5e"}}>{c.fraud}</span>
                 </div>
                 <div style={{fontSize:11,color:T.text2}}>{c.holder} · {c.type}</div>
-                <div style={{fontSize:11,color:"#f43f5e",marginTop:3}}>⚠ Anomaly detected — Isolation Forest</div>
-                <Btn T={T} style={{marginTop:8,padding:"5px 11px",fontSize:11,background:"rgba(244,63,94,.18)",color:"#f87171",border:"1px solid rgba(244,63,94,.28)"}} onClick={()=>{setSelected(c);setNav("open");}}>Investigate</Btn>
+                <div style={{fontSize:11,color:"#f43f5e",marginTop:3}}>⚠ {t("claims.fraud.anomaly")}</div>
+                <Btn T={T} style={{marginTop:8,padding:"5px 11px",fontSize:11,background:"rgba(244,63,94,.18)",color:"#f87171",border:"1px solid rgba(244,63,94,.28)"}} onClick={()=>{setSelected(c);setNav("open");}}>{t("claims.btn.investigate")}</Btn>
               </div>
             ))}
           </div>
         </Card>
       </div>
     </div>),
-    open:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>Open Claims</div>
+    open:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>{t("portal.claims.open")}</div>
       {err&&<div style={{padding:10,marginBottom:14,background:"rgba(239,68,68,.1)",borderRadius:9,color:"#ef4444",fontSize:13}}>{err}</div>}
       <div style={{display:"grid",gridTemplateColumns:selected?"1fr 340px":"1fr",gap:16}}>
         <Card T={T}><table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><TH>Claim ID</TH><TH>Policy</TH><TH>Holder</TH><TH>Type</TH><TH>Amount</TH><TH>Fraud Score</TH><TH>Status</TH><TH></TH></tr></thead>
-          <tbody>{openClaims.map(c=>(<TR key={c.id} onClick={()=>setSelected(c)} style={{cursor:"pointer"}}><TD mono accent={T.accent2}>{c.cid}</TD><TD>{c.policy}</TD><TD>{c.holder}</TD><TD>{c.type}</TD><TD>{c.amount}</TD><TD><span style={{fontWeight:700,color:c.fraud>70?"#f43f5e":c.fraud>50?"#f59e0b":"#10b981"}}>{c.fraud}{c.fraud>70?" ⚠":""}</span></TD><TD><Chip color={c.statusC} T={T}>{c.status}</Chip></TD><TD><Btn T={T} style={{padding:"5px 10px",fontSize:11}} onClick={e=>{e.stopPropagation();setNav("open");setSelected(c);}}>Adjudicate</Btn></TD></TR>))}</tbody>
+          <thead><tr><TH>{t("claims.th.claimId")}</TH><TH>{t("claims.th.policy")}</TH><TH>{t("claims.th.holder")}</TH><TH>{t("claims.th.type")}</TH><TH>{t("claims.th.amount")}</TH><TH>{t("claims.th.fraudScore")}</TH><TH>{t("claims.th.status")}</TH><TH></TH></tr></thead>
+          <tbody>{openClaims.map(c=>(<TR key={c.id} onClick={()=>setSelected(c)} style={{cursor:"pointer"}}><TD mono accent={T.accent2}>{c.cid}</TD><TD>{c.policy}</TD><TD>{c.holder}</TD><TD>{c.type}</TD><TD>{c.amount}</TD><TD><span style={{fontWeight:700,color:c.fraud>70?"#f43f5e":c.fraud>50?"#f59e0b":"#10b981"}}>{c.fraud}{c.fraud>70?" ⚠":""}</span></TD><TD><Chip color={c.statusC} T={T}>{c.status}</Chip></TD><TD><Btn T={T} style={{padding:"5px 10px",fontSize:11}} onClick={e=>{e.stopPropagation();setNav("open");setSelected(c);}}>{t("claims.btn.adjudicate")}</Btn></TD></TR>))}</tbody>
         </table></Card>
         {selected?(<Card T={T}>
           <CardHdr title={selected.cid} sub={selected.holder} T={T} action={<button onClick={()=>setSelected(null)} style={{background:"none",border:"none",color:T.text3,fontSize:18,cursor:"pointer"}}>✕</button>}/>
           <div style={{padding:"15px 18px"}}>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9,marginBottom:14}}>
-              {[["Type",selected.type],["Amount",selected.amount],["Fraud",selected.fraud],["Status",selected.status]].map(([l,v])=>(
-                <div key={l} style={{background:"rgba(200,150,100,.06)",borderRadius:8,padding:"9px 11px",border:"1px solid rgba(200,150,100,.1)"}}>
+              {[[t("claims.detail.type"),selected.type],[t("claims.detail.amount"),selected.amount],[t("claims.detail.fraud"),selected.fraud],[t("claims.detail.status"),selected.status]].map(([l,v])=>(
+                <div key={String(l)} style={{background:"rgba(200,150,100,.06)",borderRadius:8,padding:"9px 11px",border:"1px solid rgba(200,150,100,.1)"}}>
                   <div style={{fontSize:10,color:T.text3,marginBottom:3}}>{l}</div>
                   <div style={{fontSize:13,fontWeight:500,color:T.text}}>{String(v)}</div>
                 </div>
               ))}
             </div>
-            <div style={{marginBottom:12}}><div style={{fontSize:10,color:T.text3,marginBottom:5}}>Approved Amount (₹)</div><input ref={approvedAmtRef} type="number" placeholder="Optional" style={{width:"100%",background:"rgba(200,150,100,.06)",border:"1px solid rgba(200,150,100,.14)",borderRadius:8,padding:"8px 10px",color:T.text,fontSize:12,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/></div>
-            <div style={{marginBottom:12}}><div style={{fontSize:10,color:T.text3,marginBottom:5}}>Note</div><textarea ref={noteRef} rows={2} placeholder="Add note…" style={{width:"100%",background:"rgba(200,150,100,.06)",border:"1px solid rgba(200,150,100,.14)",borderRadius:8,padding:"8px 10px",color:T.text,fontSize:12,outline:"none",fontFamily:"'DM Sans',sans-serif",resize:"vertical"}}/></div>
+            <div style={{marginBottom:12}}><div style={{fontSize:10,color:T.text3,marginBottom:5}}>{t("claims.detail.approvedAmt")}</div><input ref={approvedAmtRef} type="number" placeholder={t("claims.detail.optional")} style={{width:"100%",background:"rgba(200,150,100,.06)",border:"1px solid rgba(200,150,100,.14)",borderRadius:8,padding:"8px 10px",color:T.text,fontSize:12,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/></div>
+            <div style={{marginBottom:12}}><div style={{fontSize:10,color:T.text3,marginBottom:5}}>{t("claims.detail.note")}</div><textarea ref={noteRef} rows={2} placeholder={t("claims.detail.notePh")} style={{width:"100%",background:"rgba(200,150,100,.06)",border:"1px solid rgba(200,150,100,.14)",borderRadius:8,padding:"8px 10px",color:T.text,fontSize:12,outline:"none",fontFamily:"'DM Sans',sans-serif",resize:"vertical"}}/></div>
             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-              <Btn T={T} style={{flex:1,background:"#10b981"}} disabled={submitting} onClick={()=>handleStatus(selected.id,"APPROVED",parseFloat(approvedAmtRef.current?.value||0)||undefined)}>✓ Approve</Btn>
-              <Btn T={T} variant="ghost" style={{flex:1,color:"#f87171",border:"1px solid rgba(244,63,94,.25)"}} disabled={submitting} onClick={()=>handleStatus(selected.id,"REJECTED")}>✕ Reject</Btn>
-              <Btn T={T} variant="ghost" style={{width:"100%",padding:"11px"}} disabled={submitting} onClick={()=>handleStatus(selected.id,"INVESTIGATION")}>🔍 Investigate</Btn>
+              <Btn T={T} style={{flex:1,background:"#10b981"}} disabled={submitting} onClick={()=>handleStatus(selected.id,"APPROVED",parseFloat(approvedAmtRef.current?.value||0)||undefined)}>{t("claims.btn.approve")}</Btn>
+              <Btn T={T} variant="ghost" style={{flex:1,color:"#f87171",border:"1px solid rgba(244,63,94,.25)"}} disabled={submitting} onClick={()=>handleStatus(selected.id,"REJECTED")}>{t("claims.btn.reject")}</Btn>
+              <Btn T={T} variant="ghost" style={{width:"100%",padding:"11px"}} disabled={submitting} onClick={()=>handleStatus(selected.id,"INVESTIGATION")}>{t("claims.btn.investigateFull")}</Btn>
             </div>
           </div>
         </Card>):null}
       </div>
     </div>),
-    fraud:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>Fraud Alerts</div>
+    fraud:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>{t("portal.claims.fraud")}</div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16,marginBottom:22}}>
-        <StatBox label="Fraud Flags" value="3" sub="high fraud score" accent="#f43f5e" T={T}/>
-        <StatBox label="AI Precision" value="91%" sub="Isolation Forest" accent="#10b981" T={T}/>
-        <StatBox label="Fraud Prevented" value="₹4.8Cr" sub="estimated savings" accent={T.accent} T={T}/>
+        <StatBox label={t("claims.fraud.stats.flags")} value="3" sub={t("claims.fraud.stats.subFlags")} accent="#f43f5e" T={T}/>
+        <StatBox label={t("claims.fraud.stats.precision")} value="91%" sub={t("claims.fraud.stats.subPrecision")} accent="#10b981" T={T}/>
+        <StatBox label={t("claims.fraud.stats.prevented")} value="₹4.8Cr" sub={t("claims.fraud.stats.subPrevented")} accent={T.accent} T={T}/>
       </div>
-      <Card T={T}><CardHdr title="Flagged Cases" sub="ai-fraud-service · Kafka fraud-check-results" T={T}/>
+      <Card T={T}><CardHdr title={t("claims.flagged.title")} sub={t("claims.flagged.sub")} T={T}/>
         <div style={{padding:"14px 18px",display:"flex",flexDirection:"column",gap:11}}>
           {openClaims.filter(c=>c.fraud>50).map(c=>(
             <div key={c.id} style={{background:"rgba(244,63,94,.05)",borderRadius:11,border:"1px solid rgba(244,63,94,.14)",padding:"14px 16px"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:9}}>
-                <div><div style={{fontFamily:"Syne",fontSize:13,fontWeight:700,color:T.text}}>{c.id} · {c.holder}</div><div style={{fontSize:12,color:T.text3,marginTop:2}}>{c.type} · Claimed: {c.amount}</div></div>
-                <div style={{textAlign:"right"}}><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,color:"#f43f5e"}}>{c.fraud}</div><div style={{fontSize:10,color:"#f43f5e"}}>Fraud Score</div></div>
+                <div><div style={{fontFamily:"Syne",fontSize:13,fontWeight:700,color:T.text}}>{c.id} · {c.holder}</div><div style={{fontSize:12,color:T.text3,marginTop:2}}>{c.type} · {t("claims.fraud.claimedPrefix")} {c.amount}</div></div>
+                <div style={{textAlign:"right"}}><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,color:"#f43f5e"}}>{c.fraud}</div><div style={{fontSize:10,color:"#f43f5e"}}>{t("claims.fraudScoreLabel")}</div></div>
               </div>
               <div style={{display:"flex",gap:8}}>
-                <Btn T={T} style={{padding:"6px 13px",fontSize:12,background:"rgba(244,63,94,.18)",color:"#f87171",border:"1px solid rgba(244,63,94,.28)"}} onClick={()=>{setSelected(c);setNav("open");}}>🔍 Investigate</Btn>
-                <Btn T={T} variant="ghost" style={{padding:"6px 13px",fontSize:12,color:"#10b981",border:"1px solid rgba(16,185,129,.25)"}} onClick={()=>handleStatus(c.id,"PROCESSING")}>✓ Mark Legitimate</Btn>
+                <Btn T={T} style={{padding:"6px 13px",fontSize:12,background:"rgba(244,63,94,.18)",color:"#f87171",border:"1px solid rgba(244,63,94,.28)"}} onClick={()=>{setSelected(c);setNav("open");}}>{t("claims.btn.investigateFull")}</Btn>
+                <Btn T={T} variant="ghost" style={{padding:"6px 13px",fontSize:12,color:"#10b981",border:"1px solid rgba(16,185,129,.25)"}} onClick={()=>handleStatus(c.id,"PROCESSING")}>{t("claims.btn.markLegitimate")}</Btn>
               </div>
             </div>
           ))}
         </div>
       </Card>
     </div>),
-    aifraud:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>AI Fraud Tool</div>
+    aifraud:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>{t("portal.claims.aifraud")}</div>
       {err&&<div style={{padding:10,marginBottom:14,background:"rgba(239,68,68,.1)",borderRadius:9,color:"#ef4444",fontSize:13}}>{err}</div>}
-      <Card T={T}><CardHdr title="Run Fraud Check" sub="ai-fraud-service · Isolation Forest · :9002" T={T}/>
+      <Card T={T}><CardHdr title={t("claims.aifraud.runTitle")} sub={t("claims.aifraud.runSub")} T={T}/>
         <div style={{padding:"20px 24px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-          <div><div style={{fontSize:10,color:T.text3,textTransform:"uppercase",letterSpacing:.8,marginBottom:6}}>Claim ID</div><input value={fraudForm.claimId} onChange={e=>setFraudForm(f=>({...f, claimId: e.target.value}))} style={{width:"100%",background:"rgba(200,150,100,.06)",border:"1px solid rgba(200,150,100,.14)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/></div>
-          <div><div style={{fontSize:10,color:T.text3,textTransform:"uppercase",letterSpacing:.8,marginBottom:6}}>Claim Amount</div><input value={selectedFraudAmount ? `${selectedFraudAmount}` : ""} readOnly placeholder="Auto-filled from selected claim" style={{width:"100%",background:"rgba(200,150,100,.06)",border:"1px solid rgba(200,150,100,.14)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/></div>
+          <div><div style={{fontSize:10,color:T.text3,textTransform:"uppercase",letterSpacing:.8,marginBottom:6}}>{t("claims.form.claimId")}</div><input value={fraudForm.claimId} onChange={e=>setFraudForm(f=>({...f, claimId: e.target.value}))} style={{width:"100%",background:"rgba(200,150,100,.06)",border:"1px solid rgba(200,150,100,.14)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/></div>
+          <div><div style={{fontSize:10,color:T.text3,textTransform:"uppercase",letterSpacing:.8,marginBottom:6}}>{t("claims.form.claimAmt")}</div><input value={selectedFraudAmount ? `${selectedFraudAmount}` : ""} readOnly placeholder={t("claims.form.autoFill")} style={{width:"100%",background:"rgba(200,150,100,.06)",border:"1px solid rgba(200,150,100,.14)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/></div>
           <div style={{gridColumn:"1/-1",background:"rgba(244,63,94,.07)",borderRadius:12,padding:"16px 18px",border:"1px solid rgba(244,63,94,.18)"}}>
-            <div style={{fontSize:10,color:"#f43f5e",marginBottom:7,letterSpacing:.8,textTransform:"uppercase"}}>AI Analysis Result</div>
+            <div style={{fontSize:10,color:"#f43f5e",marginBottom:7,letterSpacing:.8,textTransform:"uppercase"}}>{t("claims.ai.result")}</div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
               <div style={{fontFamily:"Syne",fontSize:32,fontWeight:700,color:"#f43f5e"}}>{fraudResult?.fraud_score ?? "—"}</div>
-              <Chip color={(fraudResult?.verdict||"").includes("HIGH")?"rose":(fraudResult?.verdict||"").includes("MEDIUM")?"amber":"green"} T={T}>{fraudResult ? (fraudResult.verdict||"N/A").replaceAll("_"," ") : "Not analyzed"}</Chip>
+              <Chip color={(fraudResult?.verdict||"").includes("HIGH")?"rose":(fraudResult?.verdict||"").includes("MEDIUM")?"amber":"green"} T={T}>{fraudResult ? (fraudResult.verdict||"N/A").replaceAll("_"," ") : t("claims.ai.notAnalyzed")}</Chip>
             </div>
-            {(fraudResult?.anomalies?.length?fraudResult.anomalies:["Run analysis to see risk factors"]).map((a,i)=><div key={i} style={{fontSize:12,color:"#f87171",marginBottom:3}}>⚠ {String(a).replaceAll("_"," ")}</div>)}
+            {(fraudResult?.anomalies?.length?fraudResult.anomalies:[t("claims.ai.runHint")]).map((a,i)=><div key={i} style={{fontSize:12,color:"#f87171",marginBottom:3}}>⚠ {String(a).replaceAll("_"," ")}</div>)}
           </div>
-          <Btn T={T} disabled={submitting} onClick={handleRunFraudAnalysis}>{submitting?"Running...":"Run Analysis"}</Btn>
+          <Btn T={T} disabled={submitting} onClick={handleRunFraudAnalysis}>{submitting?t("claims.btn.running"):t("claims.btn.runAnalysis")}</Btn>
         </div>
       </Card>
     </div>),
-    investigation:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>Under Investigation</div>
+    investigation:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>{t("portal.claims.investigation")}</div>
       <Card T={T}><div style={{padding:"14px 18px",display:"flex",flexDirection:"column",gap:9}}>
         {openClaims.filter(c=>c.status==="INVESTIGATION").length===0 ? (
-          <div style={{padding:20,textAlign:"center",color:T.text2,fontSize:13}}>No claims currently marked for investigation.</div>
+          <div style={{padding:20,textAlign:"center",color:T.text2,fontSize:13}}>{t("claims.inv.empty")}</div>
         ) : (
           openClaims.filter(c=>c.status==="INVESTIGATION").map(c=>(<div key={c.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",background:"rgba(245,158,11,.06)",borderRadius:9,border:"1px solid rgba(245,158,11,.14)"}}>
-            <div><div style={{fontSize:13,fontWeight:600,color:T.text}}>{c.id} · {c.holder}</div><div style={{fontSize:11,color:T.text3,marginTop:2}}>{c.amount} · Fraud Score: {c.fraud}</div></div>
-            <Btn T={T} style={{padding:"6px 13px",fontSize:12}} onClick={()=>{setSelected(c);setNav("open");}}>Investigate</Btn>
+            <div><div style={{fontSize:13,fontWeight:600,color:T.text}}>{c.id} · {c.holder}</div><div style={{fontSize:11,color:T.text3,marginTop:2}}>{c.amount} · {t("claims.inv.fraudLine")} {c.fraud}</div></div>
+            <Btn T={T} style={{padding:"6px 13px",fontSize:12}} onClick={()=>{setSelected(c);setNav("open");}}>{t("claims.btn.investigate")}</Btn>
           </div>))
         )}
       </div></Card>
     </div>),
-    approved:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>Approved Claims</div>
+    approved:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>{t("portal.claims.approved")}</div>
       <Card T={T}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Claim ID</TH><TH>Holder</TH><TH>Amount</TH><TH>Fraud Score</TH><TH>Approved</TH></tr></thead>
+        <thead><tr><TH>{t("claims.th.claimId")}</TH><TH>{t("claims.th.holder")}</TH><TH>{t("claims.th.amount")}</TH><TH>{t("claims.th.fraudScore")}</TH><TH>{t("claims.th.approvedCol")}</TH></tr></thead>
         <tbody>{claimsForUi.filter(c=>["APPROVED","SETTLED"].includes(c.status)).map(c=>(<TR key={c.id}><TD mono accent={T.accent2}>{c.cid}</TD><TD>{c.holder}</TD><TD>{c.amount}</TD><TD><span style={{color:"#10b981",fontWeight:600}}>{c.fraud}</span></TD><TD><Chip color="green" T={T}>{c.filedAt?new Date(c.filedAt).toLocaleDateString("en-IN"):"—"}</Chip></TD></TR>))}</tbody>
       </table></Card>
     </div>),
-    settle:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>Settlements</div>
+    settle:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>{t("portal.claims.settle")}</div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16}}>
-        <StatBox label="Settled Today" value="8" sub="claims closed" accent="#10b981" T={T}/>
-        <StatBox label="Total Settled" value="₹24.8L" sub="this month" accent={T.accent} T={T}/>
-        <StatBox label="Avg Settlement" value="4.2d" sub="turnaround" accent={T.accent2} T={T}/>
+        <StatBox label={t("claims.settle.stat1")} value="8" sub={t("claims.settle.stat1sub")} accent="#10b981" T={T}/>
+        <StatBox label={t("claims.settle.stat2")} value="₹24.8L" sub={t("claims.settle.stat2sub")} accent={T.accent} T={T}/>
+        <StatBox label={t("claims.settle.stat3")} value="4.2d" sub={t("claims.settle.stat3sub")} accent={T.accent2} T={T}/>
       </div>
     </div>),
-    reports:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>Reports</div>
+    reports:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>{t("portal.claims.reports")}</div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16}}>
-        <StatBox label="Claims Processed" value="43" sub="this month" accent={T.accent} T={T}/>
-        <StatBox label="Fraud Detection Rate" value="91%" sub="AI precision" accent="#10b981" T={T}/>
-        <StatBox label="Avg Resolution" value="4.2d" sub="target: 5d" accent={T.accent2} T={T}/>
+        <StatBox label={t("claims.reports.stat1")} value="43" sub={t("claims.reports.stat1sub")} accent={T.accent} T={T}/>
+        <StatBox label={t("claims.reports.stat2")} value="91%" sub={t("claims.reports.stat2sub")} accent="#10b981" T={T}/>
+        <StatBox label={t("claims.reports.stat3")} value="4.2d" sub={t("claims.reports.stat3sub")} accent={T.accent2} T={T}/>
       </div>
     </div>),
   };
-  const TITLES={home:"Dashboard",open:"Open Claims",fraud:"Fraud Alerts",investigation:"Investigation",approved:"Approved Claims",settle:"Settlements",aifraud:"AI Fraud Tool",reports:"Reports"};
+  const TITLES={home:t("portal.claims.home"),open:t("portal.claims.open"),fraud:t("portal.claims.fraud"),investigation:t("portal.claims.investigation"),approved:t("portal.claims.approved"),settle:t("portal.claims.settle"),aifraud:t("portal.claims.aifraud"),reports:t("portal.claims.reports")};
   return (
     <div style={{display:"flex",minHeight:"100vh",background:T.bg}}>
       <div style={{position:"fixed",top:"-20%",left:"-10%",width:"60%",height:"60%",background:"radial-gradient(ellipse,rgba(245,158,11,.05) 0%,transparent 70%)",pointerEvents:"none",zIndex:0}}/>
@@ -1132,21 +1180,25 @@ function ClaimsAdjusterPortal({ auth, onLogout }) {
         setNav={setNav}
         T={T}
         onLogout={onLogout}
+        lang={lang}
+        setLang={setLang}
+        t={t}
         badgeCounts={{
           open: String(openClaims.length),
           fraud: String(openClaims.filter(c=>c.fraud>70).length)
         }}
       />
       <div style={{marginLeft:248,flex:1,display:"flex",flexDirection:"column",position:"relative",zIndex:1}}>
-        <Topbar title={TITLES[nav]||nav} sub="Claims Adjuster · claims-service · ai-fraud-service" T={T} userName={userName} roleLabel="Claims Adjuster"/>
+        <Topbar title={TITLES[nav]||nav} sub={t("claims.portalSub")} T={T} userName={userName} roleLabel={t("auth.roleClaimsAdjuster")} t={t}/>
         <div style={{padding:26,flex:1}} key={nav}>{pages[nav]||pages.home}</div>
       </div>
     </div>
   );
 }
 
-function AdminPortal({ auth, onLogout }) {
+function AdminPortal({ auth, onLogout, lang, setLang }) {
   const T=THEMES.admin;
+  const t = useMemo(() => createT(lang), [lang]);
   const userName=auth?.user?.fullName||"Admin";
   const [nav,setNav]=useState("home");
   const [users,setUsers]=useState([]);
@@ -1290,17 +1342,18 @@ function AdminPortal({ auth, onLogout }) {
   return (
     <div style={{display:"flex",minHeight:"100vh",background:T.bg}}>
       <div style={{position:"fixed",top:"-20%",left:"-10%",width:"60%",height:"60%",background:"radial-gradient(ellipse,rgba(59,130,246,.07) 0%,transparent 70%)",pointerEvents:"none",zIndex:0}}/>
-      <Sidebar role="admin" nav={nav} setNav={setNav} T={T} onLogout={onLogout}/>
+      <Sidebar role="admin" nav={nav} setNav={setNav} T={T} onLogout={onLogout} lang={lang} setLang={setLang} t={t}/>
       <div style={{marginLeft:248,flex:1,display:"flex",flexDirection:"column",position:"relative",zIndex:1}}>
-        <Topbar title={TITLES[nav]||nav} sub="Admin Portal · Full system access" T={T} userName={userName} roleLabel="System Admin"/>
+        <Topbar title={TITLES[nav]||nav} sub={t("admin.portalSub")} T={T} userName={userName} roleLabel={t("auth.roleSystemAdmin")} t={t}/>
         <div style={{padding:26,flex:1}} key={nav}>{pages[nav]||pages.home}</div>
       </div>
     </div>
   );
 }
 
-function AiAnalystPortal({ auth, onLogout }) {
+function AiAnalystPortal({ auth, onLogout, lang, setLang }) {
   const T=THEMES.ai;
+  const t = useMemo(() => createT(lang), [lang]);
   const [nav,setNav]=useState("home");
   const services=[
     {name:"ai-risk-service",     port:9001,stack:"Risk scoring engine",       metric:"1,247 scores/day",acc:"94.3%",latency:"48ms", icon:"📊",color:"#818cf8"},
@@ -1393,9 +1446,9 @@ function AiAnalystPortal({ auth, onLogout }) {
   return (
     <div style={{display:"flex",minHeight:"100vh",background:T.bg}}>
       <div style={{position:"fixed",top:"-20%",left:"-10%",width:"60%",height:"60%",background:"radial-gradient(ellipse,rgba(139,92,246,.07) 0%,transparent 70%)",pointerEvents:"none",zIndex:0}}/>
-      <Sidebar role="ai" nav={nav} setNav={setNav} T={T} onLogout={onLogout}/>
+      <Sidebar role="ai" nav={nav} setNav={setNav} T={T} onLogout={onLogout} lang={lang} setLang={setLang} t={t}/>
       <div style={{marginLeft:248,flex:1,display:"flex",flexDirection:"column",position:"relative",zIndex:1}}>
-        <Topbar title={TITLES[nav]||nav} sub="AI Analyst Portal · Python FastAPI · Kafka" T={T} userName={auth?.user?.fullName||"AI Analyst"} roleLabel="AI Analyst"/>
+        <Topbar title={TITLES[nav]||nav} sub={t("ai.portalSub")} T={T} userName={auth?.user?.fullName||"AI Analyst"} roleLabel={t("auth.roleAiAnalyst")} t={t}/>
         <div style={{padding:26,flex:1}} key={nav}>{pages[nav]||pages.home}</div>
       </div>
     </div>
@@ -1405,14 +1458,16 @@ function AiAnalystPortal({ auth, onLogout }) {
 export default function App() {
   useEffect(injectGlobal,[]);
   const [auth,setAuth]=useState(null);
+  const [lang,setLang]=useState(getInitialLang);
+  useEffect(()=>{ persistLang(lang); },[lang]);
   const logout=async()=>{ await api.logout(); setAuth(null); };
-  if(!auth) return <LoginPage onLogin={setAuth}/>;
+  if(!auth) return <LoginPage onLogin={setAuth} lang={lang} setLang={setLang}/>;
   switch(auth.role){
-    case "customer":    return <CustomerPortal       auth={auth} onLogout={logout}/>;
-    case "underwriter": return <UnderwriterPortal    auth={auth} onLogout={logout}/>;
-    case "claims":      return <ClaimsAdjusterPortal auth={auth} onLogout={logout}/>;
-    case "admin":       return <AdminPortal          auth={auth} onLogout={logout}/>;
-    case "ai":          return <AiAnalystPortal      auth={auth} onLogout={logout}/>;
-    default:            return <LoginPage onLogin={setAuth}/>;
+    case "customer":    return <CustomerPortal       auth={auth} onLogout={logout} lang={lang} setLang={setLang}/>;
+    case "underwriter": return <UnderwriterPortal    auth={auth} onLogout={logout} lang={lang} setLang={setLang}/>;
+    case "claims":      return <ClaimsAdjusterPortal auth={auth} onLogout={logout} lang={lang} setLang={setLang}/>;
+    case "admin":       return <AdminPortal          auth={auth} onLogout={logout} lang={lang} setLang={setLang}/>;
+    case "ai":          return <AiAnalystPortal      auth={auth} onLogout={logout} lang={lang} setLang={setLang}/>;
+    default:            return <LoginPage onLogin={setAuth} lang={lang} setLang={setLang}/>;
   }
 }

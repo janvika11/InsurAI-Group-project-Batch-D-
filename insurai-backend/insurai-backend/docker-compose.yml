@@ -38,7 +38,8 @@ services:
   postgres-auth:
     image: postgres:16-alpine
     environment: { POSTGRES_DB: authdb, POSTGRES_USER: insurai, POSTGRES_PASSWORD: insurai123 }
-    ports: ["5432:5432"]
+    # Host 15432 avoids clash with a local PostgreSQL already bound to 5432
+    ports: ["15432:5432"]
     volumes: ["pg-auth:/var/lib/postgresql/data"]
 
   postgres-policy:

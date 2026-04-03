@@ -23,12 +23,31 @@ export function roleToPortal(roles) {
   return "customer";
 }
 
+// Public auth routes must not send a stale Bearer token (avoids odd 401/refresh behavior).
+function isPublicAuthPath(path) {
+  return (
+    path === "/api/auth/login" ||
+    path === "/api/auth/register" ||
+    path === "/api/auth/refresh"
+  );
+}
+
+function parseErrorBody(errText) {
+  if (!errText) return null;
+  try {
+    const j = JSON.parse(errText);
+    return j.message || j.error || null;
+  } catch (_) {
+    return null;
+  }
+}
+
 // ─── HTTP helpers ─────────────────────────────────────────────────────────────
 async function request(method, path, body = null, isFormData = false) {
   const token = getToken();
   const headers = {};
 
-  if (token) headers["Authorization"] = `Bearer ${token}`;
+  if (token && !isPublicAuthPath(path)) headers["Authorization"] = `Bearer ${token}`;
   if (!isFormData && body) headers["Content-Type"] = "application/json";
 
   const options = { method, headers };
@@ -53,9 +72,9 @@ async function request(method, path, body = null, isFormData = false) {
 
   if (!res.ok) {
     const errText = await res.text();
-    let errMsg = errText;
-    try { errMsg = JSON.parse(errText)?.message || errText; } catch (_) {}
-    throw new Error(errMsg || `Request failed: ${res.status}`);
+    const parsed = parseErrorBody(errText);
+    const errMsg = parsed || errText || `Request failed: ${res.status}`;
+    throw new Error(errMsg);
   }
 
   return res.json().catch(() => ({}));
