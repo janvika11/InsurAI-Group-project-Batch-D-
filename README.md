@@ -25,6 +25,7 @@ On GitHub: **Code → Download ZIP**, extract the folder, then open a terminal i
 ---
 
 ## Start the backend (API Gateway on port 8080)
+**Important:** Start Docker and keep it running 
 
 All runnable services live under the nested folder `insurai-backend/insurai-backend`.
 
