@@ -1,6 +1,6 @@
 # InsurAI
 
-Corporate policy automation and intelligence — full-stack monorepo (Java microservices + React frontend).
+Corporate policy automation and intelligence — full-stack  (Java microservices + React frontend).
 
 ## Get the code
 
