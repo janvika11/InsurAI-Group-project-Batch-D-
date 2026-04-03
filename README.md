@@ -85,6 +85,8 @@ Use **curl**, **Postman**, or **Thunder Client**. JSON bodies use `Content-Type:
 
 `POST http://localhost:8080/api/auth/register`
 
+**Note:** If the email is **already registered**, registration will fail — try again with a **new email address**, or use **Login** below if you already created that account.
+
 **Admin**
 
 ```json
@@ -141,8 +143,6 @@ Use **curl**, **Postman**, or **Thunder Client**. JSON bodies use `Content-Type:
 ```
 
 If that email is rejected by validation, use `neha@insurai.com` instead (same password and name).
-
-If registration fails with **“Email already registered”**, skip to login or use a different email.
 
 ---
 
@@ -240,6 +240,42 @@ curl -H "Authorization: Bearer YOUR_ACCESS_TOKEN" http://localhost:8080/api/clai
 |-------|-----|
 | Risk service | `GET http://localhost:8080/api/ai/risk/health` |
 | Assistant service | `GET http://localhost:8080/api/ai/assistant/health` |
+
+---
+
+## What to do in each portal (recommended order)
+
+Log in with the matching role (or register a user with that `role`, then log in). Then use the sidebar in this order where it applies.
+
+### Customer portal
+
+1. **Apply for policy** — Submit a new policy application first so you have a policy (and policy id) in the system.  
+2. **File a claim** — Create a claim **against an existing policy** (you need the policy id from step 1 or from **My policies**).  
+3. **My claims** — Track status; use **Renewals** when a policy is due; **AI Assistant** for questions about coverage.
+
+### Underwriter portal
+
+1. **Review queue** — Work incoming applications first.  
+2. **Risk analysis / Rules** — Check scores and rules before decisions.  
+3. **Approved / Escalated** — Approve or escalate; use **Reports** for summaries.
+
+### Claims adjuster portal
+
+1. **Open claims** — Pick a claim and **adjudicate** (approve, reject, or send to investigation).  
+2. **Fraud alerts / AI fraud tool** — Run checks on suspicious claims.  
+3. **Investigation → Settlements** — Follow cases through to closure.
+
+### Admin portal
+
+1. **User management** — **Create users** (email, password, full name, role) so teammates can log in; edit roles if your build supports it.  
+2. **Microservices / Kafka** — Confirm services are up and events are flowing.  
+3. **Audit / Rules / Config** — Review logs and system rules as needed.
+
+### AI analyst portal
+
+1. **AI Overview** — Start with service health and throughput.  
+2. **Risk / Fraud / Document / Assistant** — Drill into each AI service.  
+3. **Kafka / Models / Inference logs** — Debug pipelines and model usage.
 
 ---
 

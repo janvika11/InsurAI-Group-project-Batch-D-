@@ -14,13 +14,15 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ErrorResponse> handleRuntime(RuntimeException ex) {
+        String msg = ex.getMessage();
+        String safe = msg != null ? msg : ex.getClass().getSimpleName();
         String code = "BAD_REQUEST";
-        if (ex.getMessage() != null && ex.getMessage().contains("not found")) {
+        if (msg != null && msg.contains("not found")) {
             code = "RESOURCE_NOT_FOUND";
-        } else if (ex.getMessage() != null && ex.getMessage().contains("Invalid") || ex.getMessage().contains("disabled")) {
+        } else if (msg != null && (msg.contains("Invalid") || msg.contains("disabled"))) {
             code = "UNAUTHORIZED";
         }
-        return ResponseEntity.badRequest().body(ErrorResponse.of(code, ex.getMessage()));
+        return ResponseEntity.badRequest().body(ErrorResponse.of(code, safe));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
