@@ -198,13 +198,17 @@ public class PolicyService {
     }
 
     private PolicySummaryDto toSummaryDto(Policy policy) {
+        BigDecimal premium = policy.getPremiumAmount();
+        if (premium == null && policy.getCoverageAmount() != null && policy.getPolicyType() != null) {
+            premium = calculateInitialPremium(policy.getPolicyType(), policy.getCoverageAmount());
+        }
         return PolicySummaryDto.builder()
                 .id(policy.getId())
                 .policyNumber(policy.getPolicyNumber())
                 .holderName(policy.getHolderName())
                 .policyType(policy.getPolicyType())
                 .status(policy.getStatus())
-                .premiumAmount(policy.getPremiumAmount())
+                .premiumAmount(premium)
                 .coverageAmount(policy.getCoverageAmount())
                 .startDate(policy.getStartDate())
                 .endDate(policy.getEndDate())

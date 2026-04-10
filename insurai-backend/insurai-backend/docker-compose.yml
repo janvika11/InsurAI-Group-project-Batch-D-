@@ -144,6 +144,8 @@ services:
       SPRING_DATASOURCE_USERNAME: insurai
       SPRING_DATASOURCE_PASSWORD: insurai123
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    volumes:
+      - claims_uploads:/app/uploads
     depends_on: [postgres-claims, kafka]
 
   renewal-service:
@@ -209,3 +211,4 @@ volumes:
   pg-rules:
   pg-claims:
   pg-renewal:
+  claims_uploads:

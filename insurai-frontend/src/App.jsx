@@ -68,14 +68,30 @@ function Btn({ children, variant="primary", T, onClick, style={} }) {
   return <button style={{...base,...v,...style}} onClick={onClick} onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}>{children}</button>;
 }
 
-function ScoreBar({ value, T }) {
-  const col = value<40?"#10b981":value<70?"#f59e0b":"#f43f5e";
+function ScoreBar({ value, T, pending, pendingText }) {
+  if (pending || value == null || Number.isNaN(Number(value))) {
+    return <span style={{fontSize:12,color:T.text3,lineHeight:1.4}}>{pendingText || "—"}</span>;
+  }
+  const n = Number(value);
+  const col = n<40?"#10b981":n<70?"#f59e0b":"#f43f5e";
   return <div style={{display:"flex",alignItems:"center",gap:8}}>
     <div style={{flex:1,height:4,background:"rgba(150,150,255,.1)",borderRadius:2,overflow:"hidden"}}>
-      <div style={{height:"100%",width:`${value}%`,background:col,borderRadius:2,transition:"width .4s ease"}}/>
+      <div style={{height:"100%",width:`${Math.min(100,Math.max(0,n))}%`,background:col,borderRadius:2,transition:"width .4s ease"}}/>
     </div>
-    <span style={{fontSize:11,color:col,fontWeight:600,minWidth:22,textAlign:"right"}}>{value}</span>
+    <span style={{fontSize:11,color:col,fontWeight:600,minWidth:22,textAlign:"right"}}>{n}</span>
   </div>;
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+function estimatePremiumFromCoverage(policyType, coverageAmount) {
+  const c = Number(coverageAmount);
+  if (!Number.isFinite(c) || c <= 0) return null;
+  const rates = {
+    VEHICLE: 0.02, CORPORATE_HEALTH: 0.022, TERM_LIFE: 0.018, GROUP_LIFE: 0.018,
+    FIRE_HAZARD: 0.025, MARINE_CARGO: 0.025, CYBER_RISK: 0.025, PUBLIC_LIABILITY: 0.025, HOME: 0.015,
+  };
+  const r = rates[policyType] ?? 0.02;
+  return Math.round(c * r * 100) / 100;
 }
 
 function PulseDot({ color="#10b981" }) {
@@ -132,11 +148,11 @@ function LangSelect({ lang, setLang, T, fullWidth }) {
 
 function Sidebar({ role, nav, setNav, T, onLogout, badgeCounts = {}, lang, setLang, t }) {
   const NAVS = {
-    customer:    [{id:"home",icon:"🏠",labelKey:"sidebar.customer.home"},{id:"policies",icon:"📋",labelKey:"sidebar.customer.policies"},{id:"apply",icon:"✨",labelKey:"sidebar.customer.apply"},{id:"claims",icon:"📁",labelKey:"sidebar.customer.claims"},{id:"fileclaim",icon:"📝",labelKey:"sidebar.customer.fileclaim"},{id:"renewals",icon:"🔁",labelKey:"sidebar.customer.renewals"},{id:"assistant",icon:"💬",labelKey:"sidebar.customer.assistant"},{id:"documents",icon:"📎",labelKey:"sidebar.customer.documents"}],
-    underwriter: [{id:"home",icon:"⬡",labelKey:"sidebar.underwriter.home"},{id:"queue",icon:"📥",labelKey:"sidebar.underwriter.queue",badge:"7"},{id:"policies",icon:"📋",labelKey:"sidebar.underwriter.policies"},{id:"risk",icon:"📊",labelKey:"sidebar.underwriter.risk"},{id:"rules",icon:"⚖️",labelKey:"sidebar.underwriter.rules"},{id:"approved",icon:"✅",labelKey:"sidebar.underwriter.approved"},{id:"escalated",icon:"🚨",labelKey:"sidebar.underwriter.escalated",badge:"2"},{id:"reports",icon:"📈",labelKey:"sidebar.underwriter.reports"}],
-    claims:      [{id:"home",icon:"⬡",labelKey:"sidebar.claims.home"},{id:"open",icon:"📂",labelKey:"sidebar.claims.open",badge:"12"},{id:"fraud",icon:"🔍",labelKey:"sidebar.claims.fraud",badge:"3"},{id:"investigation",icon:"🔎",labelKey:"sidebar.claims.investigation"},{id:"approved",icon:"✅",labelKey:"sidebar.claims.approved"},{id:"settle",icon:"💰",labelKey:"sidebar.claims.settle"},{id:"aifraud",icon:"🤖",labelKey:"sidebar.claims.aifraud"},{id:"reports",icon:"📈",labelKey:"sidebar.claims.reports"}],
-    admin:       [{id:"home",icon:"⬡",labelKey:"sidebar.admin.home"},{id:"users",icon:"👥",labelKey:"sidebar.admin.users"},{id:"services",icon:"⚙️",labelKey:"sidebar.admin.services"},{id:"kafka",icon:"⚡",labelKey:"sidebar.admin.kafka"},{id:"rules",icon:"⚖️",labelKey:"sidebar.admin.rules"},{id:"audit",icon:"🔒",labelKey:"sidebar.admin.audit"},{id:"config",icon:"🛠️",labelKey:"sidebar.admin.config"},{id:"reports",icon:"📈",labelKey:"sidebar.admin.reports"}],
-    ai:          [{id:"home",icon:"⬡",labelKey:"sidebar.ai.home"},{id:"risk",icon:"📊",labelKey:"sidebar.ai.risk"},{id:"fraud",icon:"🔍",labelKey:"sidebar.ai.fraud"},{id:"document",icon:"📄",labelKey:"sidebar.ai.document"},{id:"assistant",icon:"💬",labelKey:"sidebar.ai.assistant"},{id:"kafka",icon:"⚡",labelKey:"sidebar.ai.kafka"},{id:"models",icon:"🧠",labelKey:"sidebar.ai.models"},{id:"logs",icon:"📋",labelKey:"sidebar.ai.logs"}],
+    customer:    [{id:"home",icon:"🏠",labelKey:"sidebar.customer.home"},{id:"policies",icon:"📋",labelKey:"sidebar.customer.policies"},{id:"apply",icon:"✨",labelKey:"sidebar.customer.apply"},{id:"claims",icon:"📁",labelKey:"sidebar.customer.claims"},{id:"fileclaim",icon:"📝",labelKey:"sidebar.customer.fileclaim"},{id:"renewals",icon:"🔁",labelKey:"sidebar.customer.renewals"},{id:"assistant",icon:"💬",labelKey:"sidebar.customer.assistant"}],
+    underwriter: [{id:"home",icon:"⬡",labelKey:"sidebar.underwriter.home"},{id:"queue",icon:"📥",labelKey:"sidebar.underwriter.queue"},{id:"policies",icon:"📋",labelKey:"sidebar.underwriter.policies"},{id:"rules",icon:"⚖️",labelKey:"sidebar.underwriter.rules"},{id:"approved",icon:"✅",labelKey:"sidebar.underwriter.approved"},{id:"escalated",icon:"🚨",labelKey:"sidebar.underwriter.escalated"},{id:"reports",icon:"📈",labelKey:"sidebar.underwriter.reports"}],
+    claims:      [{id:"home",icon:"⬡",labelKey:"sidebar.claims.home"},{id:"open",icon:"📂",labelKey:"sidebar.claims.open"},{id:"fraud",icon:"🔍",labelKey:"sidebar.claims.fraud"},{id:"approved",icon:"✅",labelKey:"sidebar.claims.approved"},{id:"aifraud",icon:"🤖",labelKey:"sidebar.claims.aifraud"},{id:"reports",icon:"📈",labelKey:"sidebar.claims.reports"}],
+    admin:       [{id:"home",icon:"⬡",labelKey:"sidebar.admin.home"},{id:"users",icon:"👥",labelKey:"sidebar.admin.users"},{id:"services",icon:"⚙️",labelKey:"sidebar.admin.services"},{id:"rules",icon:"⚖️",labelKey:"sidebar.admin.rules"},{id:"reports",icon:"📈",labelKey:"sidebar.admin.reports"}],
+    ai:          [{id:"home",icon:"⬡",labelKey:"sidebar.ai.home"},{id:"risk",icon:"📊",labelKey:"sidebar.ai.risk"},{id:"fraud",icon:"🔍",labelKey:"sidebar.ai.fraud"},{id:"document",icon:"📄",labelKey:"sidebar.ai.document"},{id:"assistant",icon:"💬",labelKey:"sidebar.ai.assistant"}],
   };
   const ROLE_META = {
     customer:    {icon:"🧑‍💼",labelKey:"meta.customerPortal",   color:"#10b981"},
@@ -375,6 +391,7 @@ function CustomerPortal({ auth, onLogout, lang, setLang }) {
   const [loading,setLoading]=useState(true);
   const [err,setErr]=useState("");
   const [submitting,setSubmitting]=useState(false);
+  const [claimFileNames,setClaimFileNames]=useState("");
   const applyFormRef=useRef({});
   const claimFormRef=useRef({});
   const chatRef=useRef(null);
@@ -425,9 +442,10 @@ function CustomerPortal({ auth, onLogout, lang, setLang }) {
     const sel=f?.policySelect?.value;
     if(!sel) return setErr(t("customer.err.selectPolicy"));
     const [policyId,policyNumber]=sel.split("|");
-    const holderId=auth?.user?.id||"";
+    const holderId=String(auth?.user?.id||"").trim();
     const holderName=auth?.user?.fullName||userName||"";
     const claimType=f?.claimType?.value, incidentDate=f?.incidentDate?.value, claimedAmount=f?.claimedAmount?.value;
+    if(!holderId||!UUID_RE.test(holderId)) return setErr(t("customer.err.holderId"));
     if(!policyId||!policyNumber||!holderName||!claimType||!incidentDate||!claimedAmount) return setErr(t("customer.err.fillClaimFields"));
     setSubmitting(true); setErr("");
     try {
@@ -437,6 +455,8 @@ function CustomerPortal({ auth, onLogout, lang, setLang }) {
       if(f?.description?.value) fd.append("description",f.description.value);
       if(f?.fileInput?.files?.length) for(const file of f.fileInput.files) fd.append("documents",file);
       await api.createClaim(fd);
+      setClaimFileNames("");
+      if (f?.fileInput) f.fileInput.value = "";
       setNav("claims"); const c=await api.getClaimsMy(); setMyClaims(c||[]);
     } catch(e){ setErr(e.message); }
     finally { setSubmitting(false); }
@@ -449,7 +469,17 @@ function CustomerPortal({ auth, onLogout, lang, setLang }) {
     } catch(e){ setErr(e.message); }
     finally { setSubmitting(false); }
   }
-  const toPolicy=(p)=>({id:p.policyNumber,uid:p.id,type:p.policyType||"Policy",premium:p.premiumAmount?`₹${Number(p.premiumAmount).toLocaleString("en-IN")}/yr`:"—",expiry:p.endDate?new Date(p.endDate).toLocaleDateString("en-IN",{month:"short",year:"numeric"}):"—",risk:p.riskScore??0,...p});
+  const toPolicy=(p)=>{
+    const premRaw=p.premiumAmount!=null&&p.premiumAmount!==""?Number(p.premiumAmount):null;
+    const est=premRaw==null||premRaw<=0?estimatePremiumFromCoverage(p.policyType,p.coverageAmount):null;
+    let premium="—";
+    if(premRaw!=null&&premRaw>0) premium=`₹${premRaw.toLocaleString("en-IN")}/yr`;
+    else if(est!=null) premium=`₹${est.toLocaleString("en-IN")}/yr (${t("customer.policy.premiumEst")})`;
+    const rs=p.riskScore;
+    const riskPending=rs==null||rs==="";
+    const risk=riskPending?null:Number(rs);
+    return {id:p.policyNumber,uid:p.id,type:p.policyType||"Policy",premium,coverageLabel:p.coverageAmount?`₹${Number(p.coverageAmount).toLocaleString("en-IN")}`:"—",expiry:p.endDate?new Date(p.endDate).toLocaleDateString("en-IN",{month:"short",year:"numeric"}):"—",risk,riskPending,...p};
+  };
   const toClaim=(c)=>({id:c.claimNumber,uid:c.id,policy:c.policyNumber,type:c.claimType,amount:c.claimedAmount?`₹${Number(c.claimedAmount).toLocaleString("en-IN")}`:"—",filed:c.filedAt?new Date(c.filedAt).toLocaleDateString("en-IN"):"—",status:c.status,sc:c.status==="APPROVED"||c.status==="SETTLED"?"green":c.status==="REJECTED"?"rose":"amber",...c});
   const policiesForUi=myPolicies.map(toPolicy);
   const claimsForUi=myClaims.map(toClaim);
@@ -508,16 +538,19 @@ function CustomerPortal({ auth, onLogout, lang, setLang }) {
             <div><div style={{fontFamily:"Syne",fontSize:15,fontWeight:700,color:T.text,marginBottom:3}}>{p.type}</div><div style={{fontSize:11,color:T.text3,fontFamily:"monospace"}}>{p.id}</div></div>
             <Chip color="green" T={T}>{t("customer.status.active")}</Chip>
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
-            {[[t("customer.label.premium"),p.premium],[t("customer.label.expiry"),p.expiry],[t("customer.label.coverage"),p.coverageAmount?`₹${Number(p.coverageAmount).toLocaleString("en-IN")}`:"—"]].map(([l,v],i)=>(
-              <div key={i} style={{background:"rgba(16,185,129,.05)",borderRadius:8,padding:"10px 12px",border:"1px solid rgba(16,185,129,.09)"}}>
-                <div style={{fontSize:10,color:T.text3,marginBottom:4}}>{l}</div>
-                <div style={{fontSize:13,color:T.text}}>{v}</div>
-              </div>
-            ))}
+          {p.premium!=="—"&&<div style={{fontSize:12,color:T.text2,marginBottom:10}}>{t("customer.label.premium")}: <span style={{color:T.text,fontWeight:600}}>{p.premium}</span></div>}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
+            <div style={{background:"rgba(16,185,129,.05)",borderRadius:8,padding:"10px 12px",border:"1px solid rgba(16,185,129,.09)"}}>
+              <div style={{fontSize:10,color:T.text3,marginBottom:4}}>{t("customer.label.coverage")}</div>
+              <div style={{fontSize:13,color:T.text}}>{p.coverageLabel}</div>
+            </div>
+            <div style={{background:"rgba(16,185,129,.05)",borderRadius:8,padding:"10px 12px",border:"1px solid rgba(16,185,129,.09)"}}>
+              <div style={{fontSize:10,color:T.text3,marginBottom:4}}>{t("customer.label.expiry")}</div>
+              <div style={{fontSize:13,color:T.text}}>{p.expiry}</div>
+            </div>
             <div style={{background:"rgba(16,185,129,.05)",borderRadius:8,padding:"10px 12px",border:"1px solid rgba(16,185,129,.09)"}}>
               <div style={{fontSize:10,color:T.text3,marginBottom:6}}>{t("customer.label.riskScore")}</div>
-              <ScoreBar value={p.risk} T={T}/>
+              <ScoreBar value={p.risk} T={T} pending={p.riskPending} pendingText={t("customer.policy.riskPending")}/>
             </div>
           </div>
           <div style={{display:"flex",gap:8}}>
@@ -590,10 +623,12 @@ function CustomerPortal({ auth, onLogout, lang, setLang }) {
           <textarea ref={el=>{if(el)claimFormRef.current.description=el}} rows={3} placeholder={t("customer.fileclaim.placeholder.desc")} style={{width:"100%",background:"rgba(16,185,129,.06)",border:"1px solid rgba(16,185,129,.12)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif",resize:"vertical"}}/></div>
         <div style={{gridColumn:"1/-1"}}>
           <div style={{fontSize:11,color:T.text3,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>{t("customer.fileclaim.documents")}</div>
-          <input ref={el=>{if(el)claimFormRef.current.fileInput=el}} type="file" multiple accept=".pdf,.jpg,.jpeg,.png" style={{display:"none"}}/>
+          <input ref={el=>{if(el)claimFormRef.current.fileInput=el}} type="file" multiple accept=".pdf,.jpg,.jpeg,.png" style={{display:"none"}} onChange={(e)=>setClaimFileNames(Array.from(e.target.files||[]).map(f=>f.name).join(", "))}/>
           <div onClick={()=>claimFormRef.current?.fileInput?.click()} style={{border:"2px dashed rgba(16,185,129,.2)",borderRadius:11,padding:22,textAlign:"center",cursor:"pointer"}}>
             <div style={{fontSize:26,marginBottom:5}}>📎</div><div style={{fontSize:13,color:T.text2}}>{t("customer.fileclaim.uploadHint")}</div><div style={{fontSize:11,color:T.text3,marginTop:3}}>{t("customer.fileclaim.uploadSub")}</div>
           </div>
+          {claimFileNames?<div style={{fontSize:12,color:T.accent2,marginTop:8}}>✓ {claimFileNames}</div>:null}
+          <div style={{fontSize:11,color:T.text3,marginTop:10,lineHeight:1.5}}>{t("customer.fileclaim.storageNote")}</div>
         </div>
         <div style={{gridColumn:"1/-1"}}><Btn T={T} onClick={handleFileClaim} disabled={submitting}>{submitting?t("common.submitting"):t("customer.fileclaim.submit")}</Btn></div>
       </div></Card>
@@ -623,19 +658,8 @@ function CustomerPortal({ auth, onLogout, lang, setLang }) {
         <Btn T={T} onClick={sendChat}>{t("common.send")} ➤</Btn>
       </div></Card>
     </div>),
-    documents:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>{t("customer.documentsPage.title")}</div>
-      <Card T={T}><div style={{padding:"14px 18px",display:"flex",flexDirection:"column",gap:8}}>
-        {[["Policy_POL-2025-0303.pdf","Family Health Policy","1.2 MB","12 Jan 2025"],["Claim_CLM-0044_Approved.pdf","Approved Claim Receipt","0.4 MB","15 Feb 2025"],["RenewalNotice_2025.pdf","Renewal Reminder","0.2 MB","01 Mar 2025"]].map(([f,d,s,dt])=>(
-          <div key={f} style={{display:"flex",alignItems:"center",gap:11,padding:"11px 13px",background:"rgba(16,185,129,.05)",borderRadius:9,border:"1px solid rgba(16,185,129,.09)"}}>
-            <span style={{fontSize:20}}>📄</span>
-            <div style={{flex:1}}><div style={{fontSize:13,fontWeight:500,color:T.text}}>{f}</div><div style={{fontSize:11,color:T.text3,marginTop:1}}>{d} · {s} · {dt}</div></div>
-            <Btn T={T} variant="ghost" style={{padding:"5px 10px",fontSize:11}}>⬇ {t("common.download")}</Btn>
-          </div>
-        ))}
-      </div></Card>
-    </div>),
   };
-  const TITLES={home:t("portal.customer.home"),policies:t("portal.customer.policies"),apply:t("portal.customer.apply"),claims:t("portal.customer.claims"),fileclaim:t("portal.customer.fileclaim"),renewals:t("portal.customer.renewals"),assistant:t("portal.customer.assistant"),documents:t("portal.customer.documents")};
+  const TITLES={home:t("portal.customer.home"),policies:t("portal.customer.policies"),apply:t("portal.customer.apply"),claims:t("portal.customer.claims"),fileclaim:t("portal.customer.fileclaim"),renewals:t("portal.customer.renewals"),assistant:t("portal.customer.assistant")};
   return (
     <div style={{display:"flex",minHeight:"100vh",background:T.bg}}>
       <div style={{position:"fixed",top:"-20%",left:"-10%",width:"60%",height:"60%",background:"radial-gradient(ellipse,rgba(16,185,129,.06) 0%,transparent 70%)",pointerEvents:"none",zIndex:0}}/>
@@ -670,6 +694,7 @@ function UnderwriterPortal({ auth, onLogout, lang, setLang }) {
   const [queue,setQueue]=useState([]);
   const [approvedList,setApprovedList]=useState([]);
   const [allPolicies,setAllPolicies]=useState([]);
+  const [uwRules,setUwRules]=useState([]);
   const [loading,setLoading]=useState(true);
   const [err,setErr]=useState("");
   const [submitting,setSubmitting]=useState(false);
@@ -678,11 +703,14 @@ function UnderwriterPortal({ auth, onLogout, lang, setLang }) {
     (async()=>{
       try {
         setLoading(true);
-        const [q,a,policies]=await Promise.all([
+        const [q,a,policies,rules]=await Promise.all([
           api.getWorkflowsMyQueue().catch(()=>api.getWorkflows()),
           api.getWorkflows({status:"APPROVED"}).catch(()=>[]),
-          api.getAllPolicies().catch(()=>[])
+          api.getAllPolicies().catch(()=>[]),
+          api.getRules().catch(()=>[])
         ]);
+        const rlist = Array.isArray(rules)?rules:rules?.content??[];
+        setUwRules(rlist);
         setAllPolicies(Array.isArray(policies)?policies:policies?.content??[]);
         const queueList = Array.isArray(q)?q:q?.content??[];
         const nonFinal = queueList.filter(w => !["APPROVED","REJECTED"].includes(String(w?.status || "").toUpperCase()));
@@ -691,12 +719,15 @@ function UnderwriterPortal({ auth, onLogout, lang, setLang }) {
             .filter(p => !["APPROVED","REJECTED","ACTIVE","CANCELLED","EXPIRED"].includes(String(p?.status || "").toUpperCase()))
             .map(p => ({
               id: p.id,
+              policyId: p.id,
               policyNumber: p.policyNumber,
               holderName: p.holderName,
               policyType: p.policyType,
-              riskScore: p.riskScore ?? 0,
+              riskScore: p.riskScore,
               assignedTo: null,
               createdAt: p.createdAt,
+              coverageAmount: p.coverageAmount,
+              premiumAmount: p.premiumAmount,
               _isPolicyFallback: true
             }));
           setQueue(policyQueue);
@@ -708,18 +739,61 @@ function UnderwriterPortal({ auth, onLogout, lang, setLang }) {
       finally { setLoading(false); }
     })();
   },[]);
-  const toQueueItem=(w)=>({id:w.id,pid:w.policyNumber,holder:w.holderName||"—",type:w.policyType||"Policy",risk:w.riskScore??0,aiRec:w.riskScore>70?"Escalate":w.riskScore<40?"Approve":"Manual Review",submitted:w.createdAt?new Date(w.createdAt).toLocaleDateString("en-IN",{day:"2-digit",month:"short"}):"—",uw:w.assignedTo?"Assigned":"Unassigned",...w});
-  const queueForUi=queue.map(toQueueItem);
-  const approvedForUi=approvedList.map(toQueueItem);
-  const useDemoUnderwriterStats = queueForUi.length === 0 && approvedForUi.length === 0;
-  const underwriterStats = useDemoUnderwriterStats
-    ? { queue: 7, approved: 14, escalated: 2, avgRisk: 54 }
-    : {
-        queue: queueForUi.length,
-        approved: approvedForUi.length,
-        escalated: queueForUi.filter(p=>p.aiRec==="Escalate").length,
-        avgRisk: queueForUi.length ? Math.round(queueForUi.reduce((s,p)=>s+p.risk,0)/queueForUi.length) : "—"
-      };
+  const policyById = useMemo(() => {
+    const m = new Map();
+    (allPolicies || []).forEach((p) => {
+      if (p?.id != null) m.set(String(p.id), p);
+    });
+    return m;
+  }, [allPolicies]);
+  const toQueueItem = (w) => {
+    const polKey = w.policyId ?? w.id;
+    const pol = polKey ? policyById.get(String(polKey)) : null;
+    const premiumFromPolicy = pol?.premiumAmount ?? w.premiumAmount;
+    const coverage = pol?.coverageAmount ?? w.coverageAmount;
+    const policyType = pol?.policyType || w.policyType;
+    const premRaw = premiumFromPolicy != null && premiumFromPolicy !== "" ? Number(premiumFromPolicy) : null;
+    const est = premRaw == null || premRaw <= 0 ? estimatePremiumFromCoverage(policyType, coverage) : null;
+    const premium = (premRaw != null && premRaw > 0) ? `₹${premRaw.toLocaleString("en-IN")}` : (est != null ? `₹${est.toLocaleString("en-IN")}` : "—");
+    const riskRaw = w.riskScore ?? pol?.riskScore;
+    const risk = riskRaw == null || riskRaw === "" ? null : Number(riskRaw);
+    const aiRec = risk == null || Number.isNaN(risk) ? "Pending" : risk > 70 ? "Escalate" : risk < 40 ? "Approve" : "Manual Review";
+    const created = w.createdAt ?? pol?.createdAt;
+    const submitted = created ? new Date(created).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }) : "—";
+    return {
+      id: w.id,
+      pid: w.policyNumber,
+      holder: w.holderName || "—",
+      type: policyType || "Policy",
+      risk,
+      premium,
+      aiRec,
+      submitted,
+      uw: w.assignedTo ? "Assigned" : "Unassigned",
+      ...w,
+    };
+  };
+  const queueForUi = useMemo(() => queue.map(toQueueItem), [queue, policyById]);
+  const approvedForUi = useMemo(() => approvedList.map(toQueueItem), [approvedList, policyById]);
+  const scoredInQueue = queueForUi.filter((p) => p.risk != null && !Number.isNaN(p.risk));
+  const underwriterStats = {
+    queue: queueForUi.length,
+    approved: approvedForUi.length,
+    escalated: queueForUi.filter((p) => p.aiRec === "Escalate").length,
+    avgRisk: scoredInQueue.length ? Math.round(scoredInQueue.reduce((s, p) => s + p.risk, 0) / scoredInQueue.length) : "—",
+  };
+  const riskInsights = useMemo(() => {
+    return [...queueForUi]
+      .filter((p) => p.risk != null && !Number.isNaN(p.risk))
+      .sort((a, b) => b.risk - a.risk)
+      .slice(0, 4)
+      .map((p) => ({
+        icon: p.risk > 70 ? "🔴" : p.risk > 40 ? "🟡" : "🟢",
+        label: `${p.holder} · ${p.pid}`,
+        score: p.risk,
+        blurb: p.aiRec === "Escalate" ? "Escalate – high risk" : p.aiRec === "Approve" ? "Low risk – approve eligible" : "Manual review",
+      }));
+  }, [queueForUi]);
   async function handleDecision(decision,notes){
     if(!selected?.id) return;
     if (selected?._isPolicyFallback) {
@@ -747,7 +821,8 @@ function UnderwriterPortal({ auth, onLogout, lang, setLang }) {
     try {
       await api.workflowDecision(selected.id,decision,notes||"");
       setSelected(null);
-      const [q,a,policies]=await Promise.all([api.getWorkflowsMyQueue().catch(()=>api.getWorkflows()),api.getWorkflows({status:"APPROVED"}).catch(()=>[]),api.getAllPolicies().catch(()=>[])]);
+      const [q,a,policies,rules]=await Promise.all([api.getWorkflowsMyQueue().catch(()=>api.getWorkflows()),api.getWorkflows({status:"APPROVED"}).catch(()=>[]),api.getAllPolicies().catch(()=>[]),api.getRules().catch(()=>[])]);
+      setUwRules(Array.isArray(rules)?rules:rules?.content??[]);
       setAllPolicies(Array.isArray(policies)?policies:policies?.content??[]);
       const queueList = Array.isArray(q)?q:q?.content??[];
       const nonFinal = queueList.filter(w => !["APPROVED","REJECTED"].includes(String(w?.status || "").toUpperCase()));
@@ -756,12 +831,15 @@ function UnderwriterPortal({ auth, onLogout, lang, setLang }) {
           .filter(p => !["APPROVED","REJECTED","ACTIVE","CANCELLED","EXPIRED"].includes(String(p?.status || "").toUpperCase()))
           .map(p => ({
             id: p.id,
+            policyId: p.id,
             policyNumber: p.policyNumber,
             holderName: p.holderName,
             policyType: p.policyType,
-            riskScore: p.riskScore ?? 0,
+            riskScore: p.riskScore,
             assignedTo: null,
             createdAt: p.createdAt,
+            coverageAmount: p.coverageAmount,
+            premiumAmount: p.premiumAmount,
             _isPolicyFallback: true
           }));
         setQueue(policyQueue);
@@ -787,28 +865,30 @@ function UnderwriterPortal({ auth, onLogout, lang, setLang }) {
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 320px",gap:16}}>
         <Card T={T}>
-          <CardHdr title="Review Queue" sub="Pending underwriter action" T={T} action={<button onClick={()=>setNav("queue")} style={{background:"none",border:"none",color:T.accent2,fontSize:12,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>View all →</button>}/>
+          <CardHdr title={t("underwriter.card.queueTitle")} sub={t("underwriter.card.queueSub")} T={T} action={<button onClick={()=>setNav("queue")} style={{background:"none",border:"none",color:T.accent2,fontSize:12,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>{t("common.viewAll")}</button>}/>
           <table style={{width:"100%",borderCollapse:"collapse"}}>
             <thead><tr><TH>Policy ID</TH><TH>Holder</TH><TH>Risk</TH><TH>AI Rec</TH><TH></TH></tr></thead>
             <tbody>{(queueForUi.length?queueForUi.slice(0,4):[]).map(p=>(
               <TR key={p.id} onClick={()=>{setSelected(p);setNav("queue");}} style={{cursor:"pointer"}}>
                 <TD mono accent={T.accent2}>{p.pid}</TD><TD>{p.holder}</TD>
-                <TD><div style={{width:90}}><ScoreBar value={p.risk} T={T}/></div></TD>
-                <TD><Chip color={p.aiRec==="Approve"?"green":p.aiRec==="Escalate"?"rose":"amber"} T={T}>{p.aiRec}</Chip></TD>
+                <TD><div style={{width:90}}><ScoreBar value={p.risk} T={T} pendingText="…"/></div></TD>
+                <TD><Chip color={p.aiRec==="Approve"?"green":p.aiRec==="Escalate"?"rose":p.aiRec==="Pending"?"blue":"amber"} T={T}>{p.aiRec}</Chip></TD>
                 <TD><Btn T={T} style={{padding:"5px 10px",fontSize:11}}>{p._isPolicyFallback?"View":"Review"}</Btn></TD>
               </TR>
             ))}</tbody>
           </table>
         </Card>
         <Card T={T}>
-          <CardHdr title="AI Risk Insights" sub="ai-risk-service · :9001" T={T}/>
+          <CardHdr title={t("underwriter.card.riskTitle")} sub={t("underwriter.card.riskSub")} T={T}/>
           <div style={{padding:"12px 16px",display:"flex",flexDirection:"column",gap:8}}>
-            {[["🔴","Arcturus Group",84,"Escalate – high cargo risk"],["🔴","Orion Dynamics",71,"Escalate – cyber exposure"],["🟡","Nexova Systems",67,"Review – location factor"],["🟢","Solaris Fintech",32,"Auto-approve eligible"]].map(([ic,n,s,r])=>(
-              <div key={n} style={{display:"flex",gap:9,alignItems:"flex-start",padding:"9px 10px",background:"rgba(99,102,241,.05)",borderRadius:8,border:"1px solid rgba(99,102,241,.09)"}}>
-                <span style={{fontSize:13}}>{ic}</span>
+            {riskInsights.length === 0 ? (
+              <div style={{padding:12,fontSize:12,color:T.text3,lineHeight:1.55}}>No scored policies in the queue yet. When policies receive risk scores, the highest-risk items appear here.</div>
+            ) : riskInsights.map((row) => (
+              <div key={row.label} style={{display:"flex",gap:9,alignItems:"flex-start",padding:"9px 10px",background:"rgba(99,102,241,.05)",borderRadius:8,border:"1px solid rgba(99,102,241,.09)"}}>
+                <span style={{fontSize:13}}>{row.icon}</span>
                 <div style={{flex:1}}>
-                  <div style={{fontSize:12,fontWeight:600,color:T.text}}>{n} · <span style={{color:s>70?"#f43f5e":"#f59e0b",fontFamily:"Syne",fontWeight:700}}>{s}</span></div>
-                  <div style={{fontSize:11,color:T.text3,marginTop:1}}>{r}</div>
+                  <div style={{fontSize:12,fontWeight:600,color:T.text}}>{row.label} · <span style={{color:row.score>70?"#f43f5e":"#f59e0b",fontFamily:"Syne",fontWeight:700}}>{row.score}</span></div>
+                  <div style={{fontSize:11,color:T.text3,marginTop:1}}>{row.blurb}</div>
                 </div>
               </div>
             ))}
@@ -817,17 +897,17 @@ function UnderwriterPortal({ auth, onLogout, lang, setLang }) {
       </div>
     </div>),
     queue:(<div>
-      <div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:6,color:T.text}}>Review Queue</div>
-      <div style={{fontSize:13,color:T.text2,marginBottom:22}}>7 policies awaiting underwriter decision</div>
+      <div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:6,color:T.text}}>{t("portal.underwriter.queue")}</div>
+      <div style={{fontSize:13,color:T.text2,marginBottom:22}}>{queueForUi.length} {queueForUi.length === 1 ? "policy" : "policies"} awaiting underwriter decision</div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 350px",gap:16}}>
         <Card T={T}>
           <table style={{width:"100%",borderCollapse:"collapse"}}>
             <thead><tr><TH>Policy ID</TH><TH>Holder</TH><TH>Type</TH><TH>Premium</TH><TH>Risk</TH><TH>AI Rec</TH><TH>Assignee</TH><TH></TH></tr></thead>
             <tbody>{queueForUi.map(p=>(
               <TR key={p.id} onClick={()=>setSelected(p)} style={{cursor:"pointer"}}>
-                <TD mono accent={T.accent2}>{p.pid}</TD><TD>{p.holder}</TD><TD>{p.type}</TD><TD>—</TD>
-                <TD><div style={{width:80}}><ScoreBar value={p.risk} T={T}/></div></TD>
-                <TD><Chip color={p.aiRec==="Approve"?"green":p.aiRec==="Escalate"?"rose":"amber"} T={T}>{p.aiRec}</Chip></TD>
+                <TD mono accent={T.accent2}>{p.pid}</TD><TD>{p.holder}</TD><TD>{p.type}</TD><TD>{p.premium}</TD>
+                <TD><div style={{width:80}}><ScoreBar value={p.risk} T={T} pendingText="…"/></div></TD>
+                <TD><Chip color={p.aiRec==="Approve"?"green":p.aiRec==="Escalate"?"rose":p.aiRec==="Pending"?"blue":"amber"} T={T}>{p.aiRec}</Chip></TD>
                 <TD><span style={{fontSize:12,color:T.text2}}>{p.uw}</span></TD>
                 <TD><Btn T={T} style={{padding:"5px 10px",fontSize:11}}>{p._isPolicyFallback?"View":"Review"}</Btn></TD>
               </TR>
@@ -839,7 +919,7 @@ function UnderwriterPortal({ auth, onLogout, lang, setLang }) {
             <CardHdr title={selected.id} sub={selected.holder} T={T} action={<button onClick={()=>setSelected(null)} style={{background:"none",border:"none",color:T.text3,fontSize:18,cursor:"pointer"}}>✕</button>}/>
             <div style={{padding:"15px 18px"}}>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9,marginBottom:14}}>
-                {[["Type",selected.type],["Premium",selected.premium],["Risk Score",selected.risk],["Submitted",selected.submitted]].map(([l,v])=>(
+                {[["Type",selected.type],["Premium",selected.premium],["Risk Score",selected.risk != null && !Number.isNaN(selected.risk) ? selected.risk : "—"],["Submitted",selected.submitted]].map(([l,v])=>(
                   <div key={l} style={{background:"rgba(99,102,241,.06)",borderRadius:8,padding:"9px 11px",border:"1px solid rgba(99,102,241,.1)"}}>
                     <div style={{fontSize:10,color:T.text3,marginBottom:3}}>{l}</div>
                     <div style={{fontSize:13,fontWeight:500,color:T.text}}>{v}</div>
@@ -849,7 +929,7 @@ function UnderwriterPortal({ auth, onLogout, lang, setLang }) {
               <div style={{background:"rgba(99,102,241,.08)",borderRadius:9,padding:"12px 14px",marginBottom:14,border:"1px solid rgba(99,102,241,.16)"}}>
                 <div style={{fontSize:10,color:T.text3,marginBottom:4,letterSpacing:.8,textTransform:"uppercase"}}>AI Recommendation</div>
                 <div style={{fontSize:14,fontWeight:700,color:T.accent2}}>{selected.aiRec}</div>
-                <div style={{fontSize:11,color:T.text3,marginTop:3}}>Risk score {selected.risk} · sector & historical data</div>
+                <div style={{fontSize:11,color:T.text3,marginTop:3}}>{selected.risk != null && !Number.isNaN(selected.risk) ? `Risk score ${selected.risk} · sector & historical data` : "Risk score pending — connect Kafka and ai-risk-service, or wait for scoring to finish."}</div>
               </div>
               <div style={{marginBottom:12}}>
                 <div style={{fontSize:10,color:T.text3,marginBottom:5,letterSpacing:.8,textTransform:"uppercase"}}>Underwriter Notes</div>
@@ -868,74 +948,75 @@ function UnderwriterPortal({ auth, onLogout, lang, setLang }) {
       </div>
     </div>),
     escalated:(<div>
-      <div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:6,color:T.text}}>Escalated Policies</div>
+      <div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:6,color:T.text}}>{t("underwriter.page.escalatedTitle")}</div>
       <div style={{fontSize:13,color:T.text2,marginBottom:22}}>Requires senior underwriter review</div>
       <Card T={T}><div style={{padding:"14px 18px",display:"flex",flexDirection:"column",gap:10}}>
-        {queue.filter(p=>p.aiRec==="Escalate").map(p=>(
+        {queueForUi.filter(p=>p.aiRec==="Escalate").map(p=>(
           <div key={p.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 16px",background:"rgba(244,63,94,.06)",borderRadius:11,border:"1px solid rgba(244,63,94,.16)"}}>
             <div>
-              <div style={{fontSize:13,fontWeight:600,color:T.text}}>{p.id} · {p.holder}</div>
-              <div style={{fontSize:11,color:T.text3,marginTop:3}}>Risk: {p.risk} · {p.type} · Submitted {p.submitted}</div>
+              <div style={{fontSize:13,fontWeight:600,color:T.text}}>{p.pid} · {p.holder}</div>
+              <div style={{fontSize:11,color:T.text3,marginTop:3}}>Risk: {p.risk ?? "—"} · {p.type} · Submitted {p.submitted}</div>
             </div>
             <Btn T={T} style={{background:"#f43f5e",padding:"7px 14px",fontSize:12}} onClick={()=>{setSelected(p);setNav("queue");}}>Review Now</Btn>
           </div>
         ))}
       </div></Card>
     </div>),
-    risk:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>Risk Analysis</div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16,marginBottom:22}}>
-        <StatBox label="Avg Risk Score" value="54.2" sub="current queue" accent={T.accent} T={T}/>
-        <StatBox label="High Risk (>70)" value="2" sub="need escalation" accent="#f43f5e" T={T}/>
-        <StatBox label="Auto-Approve" value="2" sub="risk score < 40" accent="#10b981" T={T}/>
-      </div>
-      <Card T={T}><CardHdr title="Risk by Sector" sub="ai-risk-service · XGBoost" T={T}/>
-        <div style={{padding:"16px 20px"}}>
-          {[["Marine Cargo",84,"rose"],["Cyber Risk",71,"rose"],["Fire & Hazard",67,"amber"],["Group Life",45,"blue"],["Group Health",32,"green"]].map(([n,v,c])=>(
-            <div key={n} style={{display:"flex",alignItems:"center",gap:14,marginBottom:13}}>
-              <div style={{fontSize:13,color:T.text,width:140}}>{n}</div>
-              <div style={{flex:1}}><ScoreBar value={v} T={T}/></div>
-              <Chip color={c} T={T}>{v>70?"High":v>50?"Medium":"Low"}</Chip>
-            </div>
-          ))}
-        </div>
-      </Card>
-    </div>),
-    approved:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>Approved Policies</div>
+    approved:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>{t("underwriter.page.approvedTitle")}</div>
       <Card T={T}><table style={{width:"100%",borderCollapse:"collapse"}}>
         <thead><tr><TH>Policy ID</TH><TH>Holder</TH><TH>Type</TH><TH>Premium</TH><TH>Risk</TH><TH>Approved</TH></tr></thead>
-        <tbody>{approvedForUi.map(p=>(<TR key={p.id}><TD mono accent={T.accent2}>{p.pid}</TD><TD>{p.holder}</TD><TD>{p.type}</TD><TD>—</TD><TD><div style={{width:80}}><ScoreBar value={p.risk} T={T}/></div></TD><TD><Chip color="green" T={T}>{p.updatedAt?new Date(p.updatedAt).toLocaleDateString("en-IN"):"—"}</Chip></TD></TR>))}</tbody>
+        <tbody>{approvedForUi.map(p=>(<TR key={p.id}><TD mono accent={T.accent2}>{p.pid}</TD><TD>{p.holder}</TD><TD>{p.type}</TD><TD>{p.premium}</TD><TD><div style={{width:80}}><ScoreBar value={p.risk} T={T} pendingText="…"/></div></TD><TD><Chip color="green" T={T}>{p.updatedAt?new Date(p.updatedAt).toLocaleDateString("en-IN"):"—"}</Chip></TD></TR>))}</tbody>
       </table></Card>
     </div>),
-    rules:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>Rules Engine</div>
+    rules:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>{t("portal.underwriter.rules")}</div>
       <Card T={T}><div style={{padding:"14px 18px",display:"flex",flexDirection:"column",gap:8}}>
-        {[["RUL-001","Eligibility Check","POLICY_CREATED","green"],["RUL-002","IRDAI Compliance","POLICY_APPROVED","green"],["RUL-003","High Risk Auto-Escalate","RISK_SCORE_GT_70","green"],["RUL-004","Auto-Renewal","EXPIRY_30D","amber"]].map(([id,name,trigger,c])=>(
-          <div key={id} style={{display:"flex",alignItems:"center",gap:13,padding:"11px 13px",background:"rgba(99,102,241,.05)",borderRadius:9,border:"1px solid rgba(99,102,241,.09)"}}>
-            <span style={{fontFamily:"monospace",fontSize:11,color:T.accent2,width:66}}>{id}</span>
-            <div style={{flex:1}}><div style={{fontSize:13,fontWeight:500,color:T.text}}>{name}</div><div style={{fontSize:11,color:T.text3,fontFamily:"monospace",marginTop:1}}>{trigger}</div></div>
-            <Chip color={c} T={T}>{c==="green"?"Active":"Draft"}</Chip>
+        {uwRules.length === 0 ? (
+          <div style={{padding:16,fontSize:13,color:T.text2}}>No rules returned from rules-service. Add rules via the API or admin portal.</div>
+        ) : (uwRules.map((r, i) => (
+          <div key={r.code || r.id || i} style={{display:"flex",alignItems:"center",gap:13,padding:"11px 13px",background:"rgba(99,102,241,.05)",borderRadius:9,border:"1px solid rgba(99,102,241,.09)"}}>
+            <span style={{fontFamily:"monospace",fontSize:11,color:T.accent2,width:66}}>{r.code || r.id || `RUL-${i + 1}`}</span>
+            <div style={{flex:1}}><div style={{fontSize:13,fontWeight:500,color:T.text}}>{r.name || r.description || "Rule"}</div><div style={{fontSize:11,color:T.text3,fontFamily:"monospace",marginTop:1}}>{r.trigger || r.eventType || "—"}</div></div>
+            <Chip color="green" T={T}>Active</Chip>
           </div>
-        ))}
+        )))}
       </div></Card>
     </div>),
-    reports:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>Reports</div>
+    reports:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>{t("portal.underwriter.reports")}</div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16}}>
-        <StatBox label="Policies Processed" value="28" sub="this month" accent={T.accent} T={T}/>
-        <StatBox label="Avg Processing Time" value="1.8d" sub="target: 2d" accent="#10b981" T={T}/>
-        <StatBox label="Approval Rate" value="74%" sub="within SLA" accent={T.accent2} T={T}/>
+        <StatBox label="Pending review" value={String(queueForUi.length)} sub="in workflow queue" accent={T.accent} T={T}/>
+        <StatBox label="Approved (workflow)" value={String(approvedForUi.length)} sub="completed workflows" accent="#10b981" T={T}/>
+        <StatBox label="High risk in queue" value={String(queueForUi.filter((p) => p.risk != null && p.risk > 70).length)} sub="risk score &gt; 70 (ai-risk-service)" accent="#f43f5e" T={T}/>
       </div>
     </div>),
-    policies:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>All Policies</div>
+    policies:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>{t("portal.underwriter.policies")}</div>
       <Card T={T}><table style={{width:"100%",borderCollapse:"collapse"}}>
         <thead><tr><TH>Policy ID</TH><TH>Holder</TH><TH>Type</TH><TH>Premium</TH><TH>Risk</TH><TH>AI Rec</TH></tr></thead>
-        <tbody>{[...queue,...approvedList.map(p=>({...p,aiRec:"Approved"}))].map(p=>(<TR key={p.id}><TD mono accent={T.accent2}>{p.id}</TD><TD>{p.holder}</TD><TD>{p.type}</TD><TD>{p.premium}</TD><TD><ScoreBar value={p.risk} T={T}/></TD><TD><Chip color={p.aiRec==="Approve"||p.aiRec==="Approved"?"green":p.aiRec==="Escalate"?"rose":"amber"} T={T}>{p.aiRec}</Chip></TD></TR>))}</tbody>
+        <tbody>{[...queueForUi, ...approvedForUi.map((p) => ({ ...p, aiRec: "Approved" }))].map((p) => (
+          <TR key={`${p.id}-${p.aiRec}`}>
+            <TD mono accent={T.accent2}>{p.pid}</TD>
+            <TD>{p.holder}</TD>
+            <TD>{p.type}</TD>
+            <TD>{p.premium}</TD>
+            <TD><ScoreBar value={p.risk} T={T} pendingText="…"/></TD>
+            <TD><Chip color={p.aiRec === "Approve" || p.aiRec === "Approved" ? "green" : p.aiRec === "Escalate" ? "rose" : p.aiRec === "Pending" ? "blue" : "amber"} T={T}>{p.aiRec}</Chip></TD>
+          </TR>
+        ))}</tbody>
       </table></Card>
     </div>),
   };
-  const TITLES={home:"Dashboard",queue:"Review Queue",policies:"All Policies",risk:"Risk Analysis",rules:"Rules Engine",approved:"Approved",escalated:"Escalated",reports:"Reports"};
+  const TITLES={
+    home:t("portal.underwriter.home"),
+    queue:t("portal.underwriter.queue"),
+    policies:t("portal.underwriter.policies"),
+    rules:t("portal.underwriter.rules"),
+    approved:t("portal.underwriter.approved"),
+    escalated:t("portal.underwriter.escalated"),
+    reports:t("portal.underwriter.reports")
+  };
   return (
     <div style={{display:"flex",minHeight:"100vh",background:T.bg}}>
       <div style={{position:"fixed",top:"-20%",right:"-10%",width:"50%",height:"60%",background:"radial-gradient(ellipse,rgba(99,102,241,.07) 0%,transparent 70%)",pointerEvents:"none",zIndex:0}}/>
-      <Sidebar role="underwriter" nav={nav} setNav={setNav} T={T} onLogout={onLogout} lang={lang} setLang={setLang} t={t}/>
+      <Sidebar role="underwriter" nav={nav} setNav={setNav} T={T} onLogout={onLogout} lang={lang} setLang={setLang} t={t} badgeCounts={{ queue: String(queueForUi.length), escalated: String(queueForUi.filter((p) => p.aiRec === "Escalate").length) }}/>
       <div style={{marginLeft:248,flex:1,display:"flex",flexDirection:"column",position:"relative",zIndex:1}}>
         <Topbar title={TITLES[nav]||nav} sub={t("underwriter.portalSub")} T={T} userName={userName} roleLabel={t("auth.roleSeniorUnderwriter")} t={t}/>
         <div style={{padding:26,flex:1}} key={nav}>{pages[nav]||pages.home}</div>
@@ -1098,9 +1179,9 @@ function ClaimsAdjusterPortal({ auth, onLogout, lang, setLang }) {
     </div>),
     fraud:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>{t("portal.claims.fraud")}</div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16,marginBottom:22}}>
-        <StatBox label={t("claims.fraud.stats.flags")} value="3" sub={t("claims.fraud.stats.subFlags")} accent="#f43f5e" T={T}/>
-        <StatBox label={t("claims.fraud.stats.precision")} value="91%" sub={t("claims.fraud.stats.subPrecision")} accent="#10b981" T={T}/>
-        <StatBox label={t("claims.fraud.stats.prevented")} value="₹4.8Cr" sub={t("claims.fraud.stats.subPrevented")} accent={T.accent} T={T}/>
+        <StatBox label={t("claims.fraud.stats.flags")} value={String(openClaims.filter((c) => c.fraud > 60).length)} sub={t("claims.fraud.stats.subFlags")} accent="#f43f5e" T={T}/>
+        <StatBox label={t("claims.kpi.openTitle")} value={String(openClaims.length)} sub={t("claims.kpi.openSub")} accent={T.accent} T={T}/>
+        <StatBox label={t("claims.kpi.invTitle")} value={String(openClaims.filter((c) => c.status === "INVESTIGATION").length)} sub={t("claims.kpi.invSub")} accent="#f59e0b" T={T}/>
       </div>
       <Card T={T}><CardHdr title={t("claims.flagged.title")} sub={t("claims.flagged.sub")} T={T}/>
         <div style={{padding:"14px 18px",display:"flex",flexDirection:"column",gap:11}}>
@@ -1137,40 +1218,21 @@ function ClaimsAdjusterPortal({ auth, onLogout, lang, setLang }) {
         </div>
       </Card>
     </div>),
-    investigation:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>{t("portal.claims.investigation")}</div>
-      <Card T={T}><div style={{padding:"14px 18px",display:"flex",flexDirection:"column",gap:9}}>
-        {openClaims.filter(c=>c.status==="INVESTIGATION").length===0 ? (
-          <div style={{padding:20,textAlign:"center",color:T.text2,fontSize:13}}>{t("claims.inv.empty")}</div>
-        ) : (
-          openClaims.filter(c=>c.status==="INVESTIGATION").map(c=>(<div key={c.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",background:"rgba(245,158,11,.06)",borderRadius:9,border:"1px solid rgba(245,158,11,.14)"}}>
-            <div><div style={{fontSize:13,fontWeight:600,color:T.text}}>{c.id} · {c.holder}</div><div style={{fontSize:11,color:T.text3,marginTop:2}}>{c.amount} · {t("claims.inv.fraudLine")} {c.fraud}</div></div>
-            <Btn T={T} style={{padding:"6px 13px",fontSize:12}} onClick={()=>{setSelected(c);setNav("open");}}>{t("claims.btn.investigate")}</Btn>
-          </div>))
-        )}
-      </div></Card>
-    </div>),
     approved:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>{t("portal.claims.approved")}</div>
       <Card T={T}><table style={{width:"100%",borderCollapse:"collapse"}}>
         <thead><tr><TH>{t("claims.th.claimId")}</TH><TH>{t("claims.th.holder")}</TH><TH>{t("claims.th.amount")}</TH><TH>{t("claims.th.fraudScore")}</TH><TH>{t("claims.th.approvedCol")}</TH></tr></thead>
         <tbody>{claimsForUi.filter(c=>["APPROVED","SETTLED"].includes(c.status)).map(c=>(<TR key={c.id}><TD mono accent={T.accent2}>{c.cid}</TD><TD>{c.holder}</TD><TD>{c.amount}</TD><TD><span style={{color:"#10b981",fontWeight:600}}>{c.fraud}</span></TD><TD><Chip color="green" T={T}>{c.filedAt?new Date(c.filedAt).toLocaleDateString("en-IN"):"—"}</Chip></TD></TR>))}</tbody>
       </table></Card>
     </div>),
-    settle:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>{t("portal.claims.settle")}</div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16}}>
-        <StatBox label={t("claims.settle.stat1")} value="8" sub={t("claims.settle.stat1sub")} accent="#10b981" T={T}/>
-        <StatBox label={t("claims.settle.stat2")} value="₹24.8L" sub={t("claims.settle.stat2sub")} accent={T.accent} T={T}/>
-        <StatBox label={t("claims.settle.stat3")} value="4.2d" sub={t("claims.settle.stat3sub")} accent={T.accent2} T={T}/>
-      </div>
-    </div>),
     reports:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>{t("portal.claims.reports")}</div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16}}>
-        <StatBox label={t("claims.reports.stat1")} value="43" sub={t("claims.reports.stat1sub")} accent={T.accent} T={T}/>
-        <StatBox label={t("claims.reports.stat2")} value="91%" sub={t("claims.reports.stat2sub")} accent="#10b981" T={T}/>
-        <StatBox label={t("claims.reports.stat3")} value="4.2d" sub={t("claims.reports.stat3sub")} accent={T.accent2} T={T}/>
+        <StatBox label={t("claims.reports.stat1")} value={String(claimsForUi.length)} sub={t("claims.reports.stat1sub")} accent={T.accent} T={T}/>
+        <StatBox label={t("claims.kpi.openTitle")} value={String(openClaims.length)} sub={t("claims.kpi.openSub")} accent="#f59e0b" T={T}/>
+        <StatBox label={t("claims.kpi.approvedTitle")} value={String(claimsForUi.filter((c) => ["APPROVED", "SETTLED"].includes(c.status)).length)} sub={t("claims.kpi.approvedSub")} accent="#10b981" T={T}/>
       </div>
     </div>),
   };
-  const TITLES={home:t("portal.claims.home"),open:t("portal.claims.open"),fraud:t("portal.claims.fraud"),investigation:t("portal.claims.investigation"),approved:t("portal.claims.approved"),settle:t("portal.claims.settle"),aifraud:t("portal.claims.aifraud"),reports:t("portal.claims.reports")};
+  const TITLES={home:t("portal.claims.home"),open:t("portal.claims.open"),fraud:t("portal.claims.fraud"),approved:t("portal.claims.approved"),aifraud:t("portal.claims.aifraud"),reports:t("portal.claims.reports")};
   return (
     <div style={{display:"flex",minHeight:"100vh",background:T.bg}}>
       <div style={{position:"fixed",top:"-20%",left:"-10%",width:"60%",height:"60%",background:"radial-gradient(ellipse,rgba(245,158,11,.05) 0%,transparent 70%)",pointerEvents:"none",zIndex:0}}/>
@@ -1206,20 +1268,22 @@ function AdminPortal({ auth, onLogout, lang, setLang }) {
   const [showAddUser,setShowAddUser]=useState(false);
   const [err,setErr]=useState("");
   const [submitting,setSubmitting]=useState(false);
+  const [dash,setDash]=useState({ policies: [], claims: [] });
   const addUserRef=useRef({});
   useEffect(()=>{
     (async()=>{
       try {
-        const [u,r]=await Promise.all([api.getUsers().catch(()=>[]),api.getRules().catch(()=>[])]);
+        const [u,r,p,c]=await Promise.all([api.getUsers().catch(()=>[]),api.getRules().catch(()=>[]),api.getAllPolicies().catch(()=>[]),api.getClaims().catch(()=>[])]);
         setUsers(Array.isArray(u)?u:[]);
         setRules(Array.isArray(r)?r:r?.content??[]);
+        setDash({ policies: Array.isArray(p)?p:[], claims: Array.isArray(c)?c:[] });
       } catch(e){ setErr(e.message); }
     })();
   },[]);
   async function handleAddUser(){
     const f=addUserRef.current;
     const email=f?.email?.value?.trim(), password=f?.password?.value, fullName=f?.fullName?.value?.trim(), role=f?.role?.value||"CUSTOMER";
-    if(!email||!password||!fullName) return setErr("Fill email, password, and full name");
+    if(!email||!password||!fullName) return setErr(t("admin.users.errFill"));
     setSubmitting(true); setErr("");
     try {
       await api.createUser({email,password,fullName,role});
@@ -1231,8 +1295,8 @@ function AdminPortal({ auth, onLogout, lang, setLang }) {
   const pages={
     home:(<div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16,marginBottom:26}}>
-        {[["⚙️","Microservices","12/12","all healthy",T.accent],["👥","Total Users","147","across all roles",T.accent2],["📈","Uptime","99.8%","last 30 days","#10b981"],["⚡","Kafka Events","5.2K/m","real-time","#f59e0b"]].map(([ic,l,v,s,c])=>(
-          <div key={l} className="fadeUp" style={{background:T.surface,border:"1px solid rgba(100,150,255,.08)",borderRadius:16,padding:18,position:"relative",overflow:"hidden"}}>
+        {[["⚙️",String(SERVICES_LIST.length),t("admin.kpi.micro.label"),t("admin.kpi.micro.sub"),T.accent],["👥",String(users.length||0),t("admin.kpi.users.label"),t("admin.kpi.users.sub"),T.accent2],["📋",String(dash.policies.length),t("admin.reports.policies"),t("admin.reports.policiesSub"),"#10b981"],["📁",String(dash.claims.length),t("admin.reports.claims"),t("admin.reports.claimsSub"),"#f59e0b"]].map(([ic,v,l,s,c],i)=>(
+          <div key={`adm-kpi-${i}`} className="fadeUp" style={{background:T.surface,border:"1px solid rgba(100,150,255,.08)",borderRadius:16,padding:18,position:"relative",overflow:"hidden"}}>
             <div style={{position:"absolute",top:-20,right:-20,width:80,height:80,borderRadius:"50%",background:c,opacity:.06,filter:"blur(25px)"}}/>
             <div style={{width:36,height:36,borderRadius:9,background:`${c}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,marginBottom:12}}>{ic}</div>
             <div style={{fontFamily:"Syne",fontSize:20,fontWeight:700,color:c}}>{v}</div>
@@ -1243,18 +1307,18 @@ function AdminPortal({ auth, onLogout, lang, setLang }) {
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
         <Card T={T}>
-          <CardHdr title="Service Health" sub="All 12 microservices" T={T} action={<button onClick={()=>setNav("services")} style={{background:"none",border:"none",color:T.accent2,fontSize:12,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>View all →</button>}/>
+          <CardHdr title={t("admin.card.healthTitle")} sub={t("admin.card.healthSub")} T={T} action={<button onClick={()=>setNav("services")} style={{background:"none",border:"none",color:T.accent2,fontSize:12,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>{t("common.viewAll")}</button>}/>
           <div style={{padding:"12px 16px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
             {SERVICES_LIST.map(s=>(<div key={s.name} style={{display:"flex",alignItems:"center",gap:7,padding:"7px 9px",background:"rgba(59,130,246,.04)",borderRadius:7}}><div style={{width:6,height:6,borderRadius:"50%",background:"#10b981",flexShrink:0}}/><span style={{fontFamily:"monospace",fontSize:10,color:T.text2,flex:1}}>{s.name}</span><span style={{fontSize:10,color:T.text3}}>:{s.port}</span></div>))}
           </div>
         </Card>
         <Card T={T}>
-          <CardHdr title="Users" sub="auth-service · :8081" T={T} action={<button onClick={()=>setNav("users")} style={{background:"none",border:"none",color:T.accent2,fontSize:12,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>View all →</button>}/>
+          <CardHdr title={t("admin.card.usersTitle")} sub={t("admin.card.usersSub")} T={T} action={<button onClick={()=>setNav("users")} style={{background:"none",border:"none",color:T.accent2,fontSize:12,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>{t("common.viewAll")}</button>}/>
           <div style={{padding:"12px 16px",display:"flex",flexDirection:"column",gap:7}}>
             {(users.length?users:USERS_LIST).slice(0,5).map(u=>(<div key={u.id||u.email} style={{display:"flex",alignItems:"center",gap:9,padding:"8px 10px",background:"rgba(59,130,246,.04)",borderRadius:8}}>
               <div style={{width:27,height:27,borderRadius:7,background:`linear-gradient(135deg,${T.accent},${T.accent2})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff",flexShrink:0}}>{(u.fullName||u.name||"U")[0]}</div>
               <div style={{flex:1}}><div style={{fontSize:12,fontWeight:500,color:T.text}}>{u.fullName||u.name}</div><div style={{fontSize:10,color:T.text3}}>{u.roles?.[0]||u.role||"—"}</div></div>
-              <Chip color="green" T={T}>Active</Chip>
+              <Chip color="green" T={T}>{t("admin.status.active")}</Chip>
             </div>))}
           </div>
         </Card>
@@ -1262,83 +1326,54 @@ function AdminPortal({ auth, onLogout, lang, setLang }) {
     </div>),
     users:(<div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:22}}>
-        <div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,color:T.text}}>User Management</div><div style={{fontSize:13,color:T.text2,marginTop:3}}>auth-service · roles · JWT · :8081</div></div>
-        <Btn T={T} onClick={()=>setShowAddUser(true)}>＋ Add User</Btn>
+        <div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,color:T.text}}>{t("portal.admin.users")}</div><div style={{fontSize:13,color:T.text2,marginTop:3}}>{t("admin.users.pageSub")}</div></div>
+        <Btn T={T} onClick={()=>setShowAddUser(true)}>{t("admin.users.addUser")}</Btn>
       </div>
       {err&&<div style={{padding:10,marginBottom:14,background:"rgba(239,68,68,.1)",borderRadius:9,color:"#ef4444",fontSize:13}}>{err}</div>}
       {showAddUser&&(<Card T={T} style={{marginBottom:16}}><div style={{padding:"20px 24px"}}>
-        <div style={{fontSize:13,fontWeight:600,marginBottom:14}}>Add New User</div>
+        <div style={{fontSize:13,fontWeight:600,marginBottom:14}}>{t("admin.users.addNewTitle")}</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
-          <div><div style={{fontSize:10,color:T.text3,marginBottom:4}}>Full Name</div><input ref={el=>{if(el)addUserRef.current.fullName=el}} placeholder="Full name" style={{width:"100%",background:"rgba(59,130,246,.06)",border:"1px solid rgba(59,130,246,.14)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/></div>
-          <div><div style={{fontSize:10,color:T.text3,marginBottom:4}}>Email</div><input ref={el=>{if(el)addUserRef.current.email=el}} type="email" placeholder="email@example.com" style={{width:"100%",background:"rgba(59,130,246,.06)",border:"1px solid rgba(59,130,246,.14)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/></div>
-          <div><div style={{fontSize:10,color:T.text3,marginBottom:4}}>Password</div><input ref={el=>{if(el)addUserRef.current.password=el}} type="password" placeholder="Min 6 chars" style={{width:"100%",background:"rgba(59,130,246,.06)",border:"1px solid rgba(59,130,246,.14)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/></div>
-          <div><div style={{fontSize:10,color:T.text3,marginBottom:4}}>Role</div><select ref={el=>{if(el)addUserRef.current.role=el}} style={{width:"100%",background:"rgba(59,130,246,.06)",border:"1px solid rgba(59,130,246,.14)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}><option value="CUSTOMER">Customer</option><option value="ADMIN">Admin</option><option value="UNDERWRITER">Underwriter</option><option value="CLAIMS_ADJUSTER">Claims Adjuster</option><option value="AI_ANALYST">AI Analyst</option></select></div>
+          <div><div style={{fontSize:10,color:T.text3,marginBottom:4}}>{t("admin.users.field.fullName")}</div><input ref={el=>{if(el)addUserRef.current.fullName=el}} placeholder={t("admin.users.ph.fullName")} style={{width:"100%",background:"rgba(59,130,246,.06)",border:"1px solid rgba(59,130,246,.14)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/></div>
+          <div><div style={{fontSize:10,color:T.text3,marginBottom:4}}>{t("admin.users.field.email")}</div><input ref={el=>{if(el)addUserRef.current.email=el}} type="email" placeholder={t("admin.users.ph.email")} style={{width:"100%",background:"rgba(59,130,246,.06)",border:"1px solid rgba(59,130,246,.14)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/></div>
+          <div><div style={{fontSize:10,color:T.text3,marginBottom:4}}>{t("admin.users.field.password")}</div><input ref={el=>{if(el)addUserRef.current.password=el}} type="password" placeholder={t("admin.users.ph.password")} style={{width:"100%",background:"rgba(59,130,246,.06)",border:"1px solid rgba(59,130,246,.14)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}/></div>
+          <div><div style={{fontSize:10,color:T.text3,marginBottom:4}}>{t("admin.users.field.role")}</div><select ref={el=>{if(el)addUserRef.current.role=el}} style={{width:"100%",background:"rgba(59,130,246,.06)",border:"1px solid rgba(59,130,246,.14)",borderRadius:8,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif"}}><option value="CUSTOMER">{t("auth.customer")}</option><option value="ADMIN">{t("auth.admin")}</option><option value="UNDERWRITER">{t("auth.underwriter")}</option><option value="CLAIMS_ADJUSTER">{t("auth.claimsAdjuster")}</option><option value="AI_ANALYST">{t("auth.aiAnalyst")}</option></select></div>
         </div>
-        <div style={{display:"flex",gap:8}}><Btn T={T} onClick={handleAddUser} disabled={submitting}>{submitting?"Creating…":"Create User"}</Btn><Btn T={T} variant="ghost" onClick={()=>{setShowAddUser(false);setErr("");}}>Cancel</Btn></div>
+        <div style={{display:"flex",gap:8}}><Btn T={T} onClick={handleAddUser} disabled={submitting}>{submitting?t("admin.users.creating"):t("admin.users.createUser")}</Btn><Btn T={T} variant="ghost" onClick={()=>{setShowAddUser(false);setErr("");}}>{t("common.cancel")}</Btn></div>
       </div></Card>)}
       <Card T={T}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>User ID</TH><TH>Name</TH><TH>Email</TH><TH>Role</TH><TH>Status</TH></tr></thead>
+        <thead><tr><TH>{t("admin.th.userId")}</TH><TH>{t("admin.th.name")}</TH><TH>{t("admin.th.email")}</TH><TH>{t("admin.th.role")}</TH><TH>{t("admin.th.status")}</TH></tr></thead>
         <tbody>{(users.length?users:USERS_LIST).map(u=>(<TR key={u.id||u.email}><TD mono accent={T.accent2}>{u.id?.slice(0,8)||u.id||"—"}</TD>
           <TD><div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:26,height:26,borderRadius:6,background:`linear-gradient(135deg,${T.accent},${T.accent2})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff"}}>{(u.fullName||u.name||"U")[0]}</div>{u.fullName||u.name}</div></TD>
           <TD>{u.email}</TD><TD><Chip color={u.roles?.[0]==="ADMIN"?"rose":u.roles?.[0]==="AI_ANALYST"?"violet":u.roles?.[0]==="UNDERWRITER"?"blue":u.roles?.[0]==="CLAIMS_ADJUSTER"?"amber":"green"} T={T}>{u.roles?.[0]||u.role||"CUSTOMER"}</Chip></TD>
-          <TD><Chip color="green" T={T}>Active</Chip></TD></TR>))}</tbody>
+          <TD><Chip color="green" T={T}>{t("admin.status.active")}</Chip></TD></TR>))}</tbody>
       </table></Card>
     </div>),
-    services:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>Microservices</div>
+    services:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>{t("portal.admin.services")}</div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:11}}>
         {SERVICES_LIST.map(s=>(<div key={s.name} style={{background:T.surface,border:"1px solid rgba(100,150,255,.08)",borderRadius:13,padding:"15px 17px",display:"flex",alignItems:"center",gap:11}}>
           <div style={{width:34,height:34,borderRadius:9,background:s.lang==="Python"?"rgba(45,212,191,.12)":"rgba(245,158,11,.12)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:17}}>{s.lang==="Python"?"🐍":"☕"}</div>
           <div style={{flex:1}}><div style={{fontFamily:"monospace",fontSize:11,color:T.text}}>{s.name}</div><div style={{fontSize:10,color:T.text3,marginTop:1}}>:{s.port} · {s.lang}</div></div>
-          <div style={{display:"flex",alignItems:"center",gap:4}}><PulseDot/><span style={{fontSize:11,color:"#10b981"}}>Up</span></div>
+          <div style={{display:"flex",alignItems:"center",gap:4}}><PulseDot/><span style={{fontSize:11,color:"#10b981"}}>{t("admin.status.up")}</span></div>
         </div>))}
       </div>
     </div>),
-    kafka:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>⚡ Kafka Monitor</div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16,marginBottom:22}}>
-        <StatBox label="Topics" value="8" sub="all healthy" accent={T.accent} T={T}/>
-        <StatBox label="Messages/min" value="5.2K" sub="peak traffic" accent={T.accent2} T={T}/>
-        <StatBox label="Broker Status" value="✓ OK" sub="3 brokers active" accent="#10b981" T={T}/>
-      </div>
-      <Card T={T}><CardHdr title="Topic Health" T={T}/>
-        <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><TH>Topic</TH><TH>Producer</TH><TH>Msg/hr</TH><TH>Status</TH></tr></thead>
-          <tbody>{[["policy-events","policy-service",1248],["risk-evaluation-requests","policy-service",847],["fraud-check-requests","claims-service",234],["notification-events","multiple",512],["audit-events","all services",2104]].map(([t,p,r])=>(<TR key={t}><TD mono accent={T.accent2}>{t}</TD><TD>{p}</TD><TD><span style={{fontFamily:"Syne",fontWeight:700,color:T.accent2}}>{r.toLocaleString()}</span></TD><TD><Chip color="green" T={T}>Healthy</Chip></TD></TR>))}</tbody>
-        </table>
-      </Card>
-    </div>),
-    audit:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>Audit Logs</div>
-      <Card T={T}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Time</TH><TH>User</TH><TH>Action</TH><TH>Service</TH><TH>Result</TH></tr></thead>
-        <tbody>{[["09:12:33","Priya Nair","POLICY_APPROVED","workflow-service","green"],["09:10:11","Vikram Rao","CLAIM_FLAGGED","ai-fraud-service","amber"],["09:08:44","System","RISK_SCORED","ai-risk-service","green"],["09:05:22","Rahul Mehta","POLICY_APPLIED","policy-service","blue"],["08:58:01","Admin","USER_CREATED","auth-service","green"]].map(([t,u,a,s,c],i)=>(<TR key={i}><TD><span style={{fontFamily:"monospace",fontSize:11,color:T.text3}}>{t}</span></TD><TD>{u}</TD><TD><span style={{fontFamily:"monospace",fontSize:11,color:T.accent2}}>{a}</span></TD><TD><span style={{fontFamily:"monospace",fontSize:11,color:T.text3}}>{s}</span></TD><TD><Chip color={c} T={T}>OK</Chip></TD></TR>))}</tbody>
-      </table></Card>
-    </div>),
-    config:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>System Config</div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-        <Card T={T}><CardHdr title="JWT Settings" T={T}/><div style={{padding:"14px 18px"}}>
-          {[["Issuer","auth-service"],["Expiry","24h"],["Algorithm","HS256"],["Refresh Token","7 days"]].map(([k,v])=>(<div key={k} style={{display:"flex",justifyContent:"space-between",fontSize:13,padding:"9px 0",borderBottom:"1px solid rgba(100,150,255,.06)"}}><span style={{color:T.text2}}>{k}</span><span style={{fontFamily:"monospace",fontSize:12,color:T.accent2}}>{v}</span></div>))}
-        </div></Card>
-        <Card T={T}><CardHdr title="Infrastructure" T={T}/><div style={{padding:"14px 18px",display:"flex",flexDirection:"column",gap:10}}>
-          {[["PostgreSQL","Connected","green"],["Apache Kafka","Healthy","green"],["Redis","Active","green"],["Elasticsearch","Indexing","amber"]].map(([n,s,c])=>(<div key={n} style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:13,padding:"8px 0",borderBottom:"1px solid rgba(100,150,255,.06)"}}><span style={{color:T.text2}}>{n}</span><Chip color={c} T={T}>{s}</Chip></div>))}
-        </div></Card>
-      </div>
-    </div>),
-    rules:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>Rules Engine</div>
+    rules:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>{t("admin.rules.title")}</div>
       <Card T={T}><div style={{padding:"14px 18px",display:"flex",flexDirection:"column",gap:8}}>
         {(rules.length?rules:[{code:"RUL-001",name:"Eligibility Check",trigger:"POLICY_CREATED"},{code:"RUL-002",name:"IRDAI Compliance",trigger:"POLICY_APPROVED"},{code:"RUL-003",name:"High Risk Escalate",trigger:"RISK_SCORE_GT_70"},{code:"RUL-004",name:"Auto-Renewal",trigger:"EXPIRY_30D"}]).map((r,i)=>(
-          <div key={r.code||r.id||i} style={{display:"flex",alignItems:"center",gap:13,padding:"11px 13px",background:"rgba(59,130,246,.05)",borderRadius:9,border:"1px solid rgba(59,130,246,.09)"}}><span style={{fontFamily:"monospace",fontSize:11,color:T.accent2,width:66}}>{r.code||r.id||`RUL-00${i+1}`}</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:500,color:T.text}}>{r.name||r.description||"Rule"}</div><div style={{fontSize:11,color:T.text3,fontFamily:"monospace",marginTop:1}}>{r.trigger||r.eventType||"—"}</div></div><Chip color="green" T={T}>Active</Chip><Btn T={T} variant="ghost" style={{padding:"5px 9px",fontSize:11}}>Edit</Btn></div>
+          <div key={r.code||r.id||i} style={{display:"flex",alignItems:"center",gap:13,padding:"11px 13px",background:"rgba(59,130,246,.05)",borderRadius:9,border:"1px solid rgba(59,130,246,.09)"}}><span style={{fontFamily:"monospace",fontSize:11,color:T.accent2,width:66}}>{r.code||r.id||`RUL-00${i+1}`}</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:500,color:T.text}}>{r.name||r.description||"Rule"}</div><div style={{fontSize:11,color:T.text3,fontFamily:"monospace",marginTop:1}}>{r.trigger||r.eventType||"—"}</div></div><Chip color="green" T={T}>{t("admin.status.active")}</Chip><Btn T={T} variant="ghost" style={{padding:"5px 9px",fontSize:11}}>{t("admin.rules.edit")}</Btn></div>
         ))}
       </div></Card>
     </div>),
-    reports:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>Reports</div>
+    reports:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>{t("admin.reports.title")}</div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16}}>
-        <StatBox label="Total Policies" value="2,481" sub="active" accent={T.accent} T={T}/>
-        <StatBox label="Open Claims" value="187" sub="in progress" accent="#f43f5e" T={T}/>
-        <StatBox label="AI Accuracy" value="94.3%" sub="risk model" accent="#10b981" T={T}/>
-        <StatBox label="Revenue YTD" value="₹4.2Cr" sub="Q1 2025" accent="#f59e0b" T={T}/>
+        <StatBox label={t("admin.reports.policies")} value={String(dash.policies.length)} sub={t("admin.reports.policiesSub")} accent={T.accent} T={T}/>
+        <StatBox label={t("admin.reports.claims")} value={String(dash.claims.length)} sub={t("admin.reports.claimsSub")} accent="#f43f5e" T={T}/>
+        <StatBox label={t("admin.kpi.users.label")} value={String(users.length)} sub={t("admin.kpi.users.sub")} accent="#10b981" T={T}/>
+        <StatBox label={t("admin.rules.title")} value={String(rules.length)} sub="rules-service" accent="#f59e0b" T={T}/>
       </div>
     </div>),
   };
-  const TITLES={home:"Dashboard",users:"User Management",services:"Microservices",kafka:"Kafka Monitor",rules:"Rules Engine",audit:"Audit Logs",config:"System Config",reports:"Reports"};
+  const TITLES={home:t("portal.admin.home"),users:t("portal.admin.users"),services:t("portal.admin.services"),rules:t("portal.admin.rules"),reports:t("portal.admin.reports")};
   return (
     <div style={{display:"flex",minHeight:"100vh",background:T.bg}}>
       <div style={{position:"fixed",top:"-20%",left:"-10%",width:"60%",height:"60%",background:"radial-gradient(ellipse,rgba(59,130,246,.07) 0%,transparent 70%)",pointerEvents:"none",zIndex:0}}/>
@@ -1351,21 +1386,42 @@ function AdminPortal({ auth, onLogout, lang, setLang }) {
   );
 }
 
+function aiHealthOk(h) {
+  if (!h || typeof h !== "object") return false;
+  const s = String(h.status || "").toLowerCase();
+  return s === "ok" || s === "healthy" || Boolean(h.service);
+}
+
 function AiAnalystPortal({ auth, onLogout, lang, setLang }) {
   const T=THEMES.ai;
   const t = useMemo(() => createT(lang), [lang]);
   const [nav,setNav]=useState("home");
+  const [aiHealth,setAiHealth]=useState({ risk:null, fraud:null, document:null, assistant:null, loading:true });
+  useEffect(()=>{
+    let c=false;
+    (async()=>{
+      const [risk,fraud,document,assistant]=await Promise.all([
+        api.getAIRiskHealth().catch(()=>null),
+        api.getAIFraudHealth().catch(()=>null),
+        api.getAIDocumentHealth().catch(()=>null),
+        api.getAIAssistantHealth().catch(()=>null),
+      ]);
+      if(!c) setAiHealth({ risk,fraud,document,assistant,loading:false });
+    })();
+    return ()=>{ c=true; };
+  },[]);
   const services=[
-    {name:"ai-risk-service",     port:9001,stack:"Risk scoring engine",       metric:"1,247 scores/day",acc:"94.3%",latency:"48ms", icon:"📊",color:"#818cf8"},
-    {name:"ai-fraud-service",    port:9002,stack:"Fraud detection engine",    metric:"12 flags today",  acc:"91%",  latency:"62ms", icon:"🔍",color:"#f43f5e"},
-    {name:"ai-document-service", port:9003,stack:"Document extraction engine",metric:"348 docs parsed", acc:"97%",  latency:"210ms",icon:"📄",color:"#2dd4bf"},
-    {name:"ai-assistant-service",port:9004,stack:"Assistant orchestration",   metric:"89 queries/day",  acc:"N/A",  latency:"1.2s", icon:"💬",color:"#a78bfa"},
+    { key:"risk", name:"ai-risk-service", port:9001, stack:"Risk scoring (Kafka + rules)", icon:"📊", color:"#818cf8", h: aiHealth.risk, path:"/api/ai/risk/health" },
+    { key:"fraud", name:"ai-fraud-service", port:9002, stack:"Fraud detection", icon:"🔍", color:"#f43f5e", h: aiHealth.fraud, path:"/api/ai/fraud/health" },
+    { key:"document", name:"ai-document-service", port:9003, stack:"Document analysis", icon:"📄", color:"#2dd4bf", h: aiHealth.document, path:"/api/ai/documents/health" },
+    { key:"assistant", name:"ai-assistant-service", port:9004, stack:"Assistant (customer portal)", icon:"💬", color:"#a78bfa", h: aiHealth.assistant, path:"/api/ai/assistant/health" },
   ];
+  const onlineN = services.filter((s) => aiHealthOk(s.h)).length;
   const pages={
     home:(<div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16,marginBottom:26}}>
-        {[["🤖","AI Services","4/4","all online",T.accent],["📊","Inferences","1,776","today",T.accent2],["⚡","Kafka Topics","8","all healthy","#2dd4bf"],["🧠","Models","6","in production","#f59e0b"]].map(([ic,l,v,s,c])=>(
-          <div key={l} className="fadeUp" style={{background:T.surface,border:"1px solid rgba(130,100,200,.08)",borderRadius:16,padding:18,position:"relative",overflow:"hidden"}}>
+        {[["🤖",aiHealth.loading?"…":`${onlineN}/4`,"Python AI services","of 4 · GET /api/ai/*/health via gateway",T.accent],[String(SERVICES_LIST.length),String(SERVICES_LIST.length),t("admin.kpi.micro.label"),"Java + Python (see Admin → Services)",T.accent2],["🟢",aiHealth.loading?"…":String(onlineN),"Healthy endpoints","api-gateway → :9001–:9004","#2dd4bf"],["⚡","Kafka",t("admin.kpi.kafka.label"),"risk-evaluation-requests + results","#f59e0b"]].map(([ic,v,l,s,c],i)=>(
+          <div key={`ai-kpi-${i}`} className="fadeUp" style={{background:T.surface,border:"1px solid rgba(130,100,200,.08)",borderRadius:16,padding:18,position:"relative",overflow:"hidden"}}>
             <div style={{position:"absolute",top:-20,right:-20,width:80,height:80,borderRadius:"50%",background:c,opacity:.07,filter:"blur(25px)"}}/>
             <div style={{width:36,height:36,borderRadius:9,background:`${c}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,marginBottom:12}}>{ic}</div>
             <div style={{fontFamily:"Syne",fontSize:20,fontWeight:700,color:c}}>{v}</div>
@@ -1381,68 +1437,55 @@ function AiAnalystPortal({ auth, onLogout, lang, setLang }) {
               <div style={{width:40,height:40,borderRadius:11,background:`${s.color}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:19}}>{s.icon}</div>
               <div><div style={{fontFamily:"Syne",fontSize:12,fontWeight:700,color:T.text}}>{s.name}</div><div style={{fontSize:10,color:T.text3,marginTop:1}}>:{s.port} · {s.stack}</div></div>
             </div>
-            <div style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:"#10b981"}}><PulseDot/> Live</div>
+            <div style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:aiHealthOk(s.h)?"#10b981":"#f43f5e"}}>{aiHealthOk(s.h)?<><PulseDot/> {t("admin.status.up")}</>:<span>Offline</span>}</div>
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:9}}>
-            {[["Volume",s.metric],["Accuracy",s.acc],["P95 Latency",s.latency]].map(([l,v])=>(<div key={l} style={{background:"rgba(130,100,200,.06)",borderRadius:7,padding:"8px 9px"}}><div style={{fontSize:9,color:T.text3,textTransform:"uppercase",letterSpacing:.8,marginBottom:3}}>{l}</div><div style={{fontSize:12,fontWeight:600,color:s.color}}>{v}</div></div>))}
-          </div>
+          <div style={{fontSize:11,color:T.text3,fontFamily:"monospace",marginBottom:8}}>GET {s.path}</div>
+          <Btn T={T} style={{padding:"6px 12px",fontSize:12}} onClick={()=>setNav(s.key)}>{t("common.viewAll")}</Btn>
         </div>))}
       </div>
     </div>),
     risk:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>Risk Scoring Service</div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16,marginBottom:22}}>
-        <StatBox label="Inferences Today" value="1,247" sub="via Kafka consumer" accent={T.accent} T={T}/>
-        <StatBox label="Avg Score" value="43.2" sub="all policies" accent={T.accent2} T={T}/>
-        <StatBox label="Model Accuracy" value="94.3%" sub="production model" accent="#10b981" T={T}/>
+        <StatBox label={t("admin.status.up")} value={aiHealthOk(aiHealth.risk)?"OK":"—"} sub="GET /api/ai/risk/health" accent={aiHealthOk(aiHealth.risk)?"#10b981":"#f43f5e"} T={T}/>
+        <StatBox label="Kafka" value="risk-evaluation-*" sub="consumes requests, publishes results" accent={T.accent2} T={T}/>
+        <StatBox label="Gateway" value=":8080" sub="api-gateway → :9001" accent="#2dd4bf" T={T}/>
       </div>
-      <Card T={T}><CardHdr title="API Endpoint" sub="POST /api/risk/score · ai-risk-service :9001" T={T}/>
-        <div style={{padding:"14px 18px"}}><div style={{background:"rgba(130,100,200,.06)",borderRadius:9,padding:"13px 15px",fontFamily:"monospace",fontSize:12,color:"#2dd4bf",lineHeight:1.8,border:"1px solid rgba(130,100,200,.1)"}}>{"// Request\nPOST http://ai-risk-service:9001/api/risk/score\n{\n  \"policy_id\": \"POL-2025-0839\",\n  \"features\": { \"sector\": \"fire\", \"revenue\": 180000000 }\n}\n\n// Response\n{ \"risk_score\": 67, \"label\": \"MEDIUM\", \"factors\": [\"occupancy_index\"] }"}</div></div>
+      <Card T={T}><CardHdr title="Health payload" sub="ai-risk-service" T={T}/>
+        <div style={{padding:"14px 18px"}}><pre style={{background:"rgba(130,100,200,.06)",borderRadius:9,padding:"13px 15px",fontFamily:"monospace",fontSize:11,color:T.text2,lineHeight:1.6,border:"1px solid rgba(130,100,200,.1)",whiteSpace:"pre-wrap",wordBreak:"break-word"}}>{aiHealth.loading?"…":JSON.stringify(aiHealth.risk||{ error:"unreachable" },null,2)}</pre></div>
       </Card>
     </div>),
     fraud:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>Fraud Detection Service</div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16,marginBottom:22}}>
-        <StatBox label="Flags Today" value="12" sub="anomaly detected" accent="#f43f5e" T={T}/>
-        <StatBox label="Precision" value="91%" sub="fraud model" accent="#10b981" T={T}/>
-        <StatBox label="False Positive Rate" value="9%" sub="improving" accent="#f59e0b" T={T}/>
+        <StatBox label={t("admin.status.up")} value={aiHealthOk(aiHealth.fraud)?"OK":"—"} sub="GET /api/ai/fraud/health" accent={aiHealthOk(aiHealth.fraud)?"#10b981":"#f43f5e"} T={T}/>
+        <StatBox label="Claims portal" value="POST" sub="/api/ai/fraud/detect via gateway" accent={T.accent} T={T}/>
+        <StatBox label="Gateway" value=":8080" sub="api-gateway → :9002" accent="#f59e0b" T={T}/>
       </div>
-      <Card T={T}><CardHdr title="API Endpoint" sub="POST /api/fraud/detect · ai-fraud-service :9002" T={T}/>
-        <div style={{padding:"14px 18px"}}><div style={{background:"rgba(130,100,200,.06)",borderRadius:9,padding:"13px 15px",fontFamily:"monospace",fontSize:12,color:"#2dd4bf",lineHeight:1.8,border:"1px solid rgba(130,100,200,.1)"}}>{"// Request\nPOST http://ai-fraud-service:9002/api/fraud/detect\n{\n  \"claim_id\": \"CLM-0091\",\n  \"amount\": 4800000\n}\n\n// Response\n{ \"fraud_score\": 87, \"verdict\": \"HIGH_RISK\", \"anomalies\": [\"amount_spike_8x\"] }"}</div></div>
+      <Card T={T}><CardHdr title="Health payload" sub="ai-fraud-service" T={T}/>
+        <div style={{padding:"14px 18px"}}><pre style={{background:"rgba(130,100,200,.06)",borderRadius:9,padding:"13px 15px",fontFamily:"monospace",fontSize:11,color:T.text2,lineHeight:1.6,border:"1px solid rgba(130,100,200,.1)",whiteSpace:"pre-wrap",wordBreak:"break-word"}}>{aiHealth.loading?"…":JSON.stringify(aiHealth.fraud||{ error:"unreachable" },null,2)}</pre></div>
       </Card>
     </div>),
     document:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>Document Analysis Service</div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16}}>
-        <StatBox label="Docs Parsed" value="348" sub="today" accent="#2dd4bf" T={T}/>
-        <StatBox label="Extraction Acc" value="97%" sub="extraction model" accent="#10b981" T={T}/>
-        <StatBox label="Avg Latency" value="210ms" sub="per document" accent={T.accent2} T={T}/>
+        <StatBox label={t("admin.status.up")} value={aiHealthOk(aiHealth.document)?"OK":"—"} sub="GET /api/ai/documents/health" accent={aiHealthOk(aiHealth.document)?"#10b981":"#f43f5e"} T={T}/>
+        <StatBox label="Gateway" value=":8080" sub="api-gateway → :9003" accent="#2dd4bf" T={T}/>
+        <StatBox label="Stack" value="Python" sub="FastAPI" accent={T.accent2} T={T}/>
       </div>
+      <Card T={T}><CardHdr title="Health payload" sub="ai-document-service" T={T}/>
+        <div style={{padding:"14px 18px"}}><pre style={{background:"rgba(130,100,200,.06)",borderRadius:9,padding:"13px 15px",fontFamily:"monospace",fontSize:11,color:T.text2,lineHeight:1.6,border:"1px solid rgba(130,100,200,.1)",whiteSpace:"pre-wrap",wordBreak:"break-word"}}>{aiHealth.loading?"…":JSON.stringify(aiHealth.document||{ error:"unreachable" },null,2)}</pre></div>
+      </Card>
     </div>),
     assistant:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>AI Assistant Service</div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16}}>
-        <StatBox label="Queries Today" value="89" sub="RAG responses" accent={T.accent} T={T}/>
-        <StatBox label="Avg Response" value="1.2s" sub="LLM latency" accent={T.accent2} T={T}/>
-        <StatBox label="Vector DB" value="2,481" sub="indexed policies" accent="#2dd4bf" T={T}/>
+        <StatBox label={t("admin.status.up")} value={aiHealthOk(aiHealth.assistant)?"OK":"—"} sub="GET /api/ai/assistant/health" accent={aiHealthOk(aiHealth.assistant)?"#10b981":"#f43f5e"} T={T}/>
+        <StatBox label="Customer portal" value="POST" sub="/api/ai/assistant/chat" accent={T.accent} T={T}/>
+        <StatBox label="Gateway" value=":8080" sub="api-gateway → :9004" accent={T.accent2} T={T}/>
       </div>
-    </div>),
-    kafka:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>Event Stream</div>
-      <Card T={T}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Topic</TH><TH>AI Consumer</TH><TH>Msg/hr</TH><TH>Status</TH></tr></thead>
-        <tbody>{[["risk-evaluation-requests","ai-risk-service",847],["risk-evaluation-results","policy-service",841],["fraud-check-requests","ai-fraud-service",234],["fraud-check-results","claims-service",229],["document-analysis-requests","ai-document-service",348]].map(([t,c,r])=>(<TR key={t}><TD mono accent={T.accent2}>{t}</TD><TD>{c}</TD><TD><span style={{fontFamily:"Syne",fontWeight:700,color:T.accent2}}>{r}</span></TD><TD><Chip color="green" T={T}>Healthy</Chip></TD></TR>))}</tbody>
-      </table></Card>
-    </div>),
-    models:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>Model Registry</div>
-      <Card T={T}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Model</TH><TH>Service</TH><TH>Version</TH><TH>Accuracy</TH><TH>Status</TH></tr></thead>
-        <tbody>{[["Risk Scoring Model","ai-risk-service","v2.1","94.3%"],["Fraud Detection Model","ai-fraud-service","v1.4","91%"],["Document Extraction Model","ai-document-service","v3.0","97%"],["Assistant Orchestrator","ai-assistant-service","v1.0","N/A"]].map(([m,s,v,a])=>(<TR key={m}><TD>{m}</TD><TD><span style={{fontFamily:"monospace",fontSize:11,color:T.accent2}}>{s}</span></TD><TD>{v}</TD><TD>{a}</TD><TD><Chip color="green" T={T}>Deployed</Chip></TD></TR>))}</tbody>
-      </table></Card>
-    </div>),
-    logs:(<div><div style={{fontFamily:"Syne",fontSize:22,fontWeight:700,marginBottom:22,color:T.text}}>Inference Logs</div>
-      <Card T={T}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Time</TH><TH>Service</TH><TH>Input ID</TH><TH>Score</TH><TH>Latency</TH></tr></thead>
-        <tbody>{[["09:14:22","ai-risk-service","POL-2025-0842","34","45ms"],["09:13:58","ai-fraud-service","CLM-0092","21","60ms"],["09:13:12","ai-risk-service","POL-2025-0840","67","48ms"],["09:12:44","ai-document-service","POL-2025-0839","N/A","208ms"],["09:11:30","ai-fraud-service","CLM-0091","87","63ms"]].map(([t,s,id,sc,lat],i)=>(<TR key={i}><TD><span style={{fontFamily:"monospace",fontSize:11,color:T.text3}}>{t}</span></TD><TD><span style={{fontFamily:"monospace",fontSize:11,color:T.accent2}}>{s}</span></TD><TD><span style={{fontFamily:"monospace",fontSize:11,color:T.text2}}>{id}</span></TD><TD><span style={{color:sc==="N/A"?T.text3:parseInt(sc)>70?"#f43f5e":parseInt(sc)>50?"#f59e0b":"#10b981",fontWeight:700}}>{sc}</span></TD><TD><span style={{fontSize:12,color:T.text3}}>{lat}</span></TD></TR>))}</tbody>
-      </table></Card>
+      <Card T={T}><CardHdr title="Health payload" sub="ai-assistant-service" T={T}/>
+        <div style={{padding:"14px 18px"}}><pre style={{background:"rgba(130,100,200,.06)",borderRadius:9,padding:"13px 15px",fontFamily:"monospace",fontSize:11,color:T.text2,lineHeight:1.6,border:"1px solid rgba(130,100,200,.1)",whiteSpace:"pre-wrap",wordBreak:"break-word"}}>{aiHealth.loading?"…":JSON.stringify(aiHealth.assistant||{ error:"unreachable" },null,2)}</pre></div>
+      </Card>
     </div>),
   };
-  const TITLES={home:"AI Overview",risk:"Risk Service",fraud:"Fraud Service",document:"Document Service",assistant:"Assistant Service",kafka:"Event Stream",models:"Model Registry",logs:"Inference Logs"};
+  const TITLES={home:t("sidebar.ai.home"),risk:t("sidebar.ai.risk"),fraud:t("sidebar.ai.fraud"),document:t("sidebar.ai.document"),assistant:t("sidebar.ai.assistant")};
   return (
     <div style={{display:"flex",minHeight:"100vh",background:T.bg}}>
       <div style={{position:"fixed",top:"-20%",left:"-10%",width:"60%",height:"60%",background:"radial-gradient(ellipse,rgba(139,92,246,.07) 0%,transparent 70%)",pointerEvents:"none",zIndex:0}}/>

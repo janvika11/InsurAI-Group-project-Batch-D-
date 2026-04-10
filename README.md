@@ -70,6 +70,8 @@ npm run dev
 
 Open **http://localhost:3000**. The Vite dev server **proxies `/api` to `http://localhost:8080`**, so the gateway must be running first for live API calls.
 
+**Claim document uploads** are stored by **claims-service** on **server disk** (Docker volume `claims_uploads` → `/app/uploads` in the container), **not** in Amazon S3. AWS credentials in `.env` do not apply to that flow unless you change the Java code to use S3.
+
 Other useful commands:
 
 ```bash

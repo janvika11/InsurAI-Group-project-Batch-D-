@@ -1,9 +1,11 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 
 
 class RiskFeatures(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     sector: Optional[str] = None
     revenue: Optional[float] = None
     employees: Optional[int] = None

@@ -5,21 +5,48 @@ from aiokafka import AIOKafkaConsumer
 from config import settings
 from kafka.producer import publish_risk_result, close_producer
 from services.risk_service import score_risk
-from schemas.risk import RiskScoreRequest, KafkaRiskResult
+from schemas.risk import RiskScoreRequest, RiskFeatures, KafkaRiskResult
 from datetime import datetime, timezone
 
 
+def _pick(msg: dict, *keys: str):
+    for k in keys:
+        if k in msg and msg[k] is not None:
+            return msg[k]
+    return None
+
+
+def _normalize_java_risk_request(msg: dict) -> dict:
+    """Java policy-service sends camelCase; legacy samples used snake_case."""
+    policy_id = _pick(msg, "policyId", "policy_id")
+    policy_type = _pick(msg, "policyType", "policy_type") or ""
+    raw_features = _pick(msg, "features") or {}
+    if not isinstance(raw_features, dict):
+        raw_features = {}
+    return {
+        "request_id": (_pick(msg, "requestId", "request_id") or ""),
+        "policy_id": str(policy_id) if policy_id is not None else "",
+        "policy_number": _pick(msg, "policyNumber", "policy_number"),
+        "policy_type": str(policy_type),
+        "features": raw_features,
+    }
+
+
 async def _process_message(msg_value: dict) -> None:
+    norm = _normalize_java_risk_request(msg_value)
     try:
+        if not norm["policy_id"]:
+            raise ValueError("Missing policyId on risk evaluation request")
+        features = RiskFeatures.model_validate(norm["features"])
         req = RiskScoreRequest(
-            policy_id=msg_value["policy_id"],
-            policy_number=msg_value.get("policy_number"),
-            policy_type=msg_value["policy_type"],
-            features=msg_value["features"],
+            policy_id=norm["policy_id"],
+            policy_number=norm.get("policy_number"),
+            policy_type=norm["policy_type"],
+            features=features,
         )
         result = await score_risk(req)
         kafka_result = KafkaRiskResult(
-            request_id=msg_value.get("request_id", ""),
+            request_id=norm["request_id"],
             policy_id=result.policy_id,
             risk_score=result.risk_score,
             label=result.label,
@@ -30,10 +57,9 @@ async def _process_message(msg_value: dict) -> None:
         )
         await publish_risk_result(kafka_result.model_dump(mode="json"))
     except Exception as e:
-        # Publish error result for request_id if available
         err_result = {
-            "request_id": msg_value.get("request_id", ""),
-            "policy_id": msg_value.get("policy_id", ""),
+            "request_id": norm.get("request_id", ""),
+            "policy_id": norm.get("policy_id", ""),
             "error": str(e),
             "scored_at": datetime.now(timezone.utc).isoformat(),
         }
